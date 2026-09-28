@@ -1,0 +1,2 @@
+PyAudioWPatch==0.2.12.8
+websockets==16.0
