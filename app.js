@@ -1,5 +1,24 @@
 const selectedItems=new Set();let selectionHub=null;
-const OLD_KEY="panel_beater_study_parts_v1",KEY="mb_future_knowledge_hubs_v1";const $=id=>document.getElementById(id);function uid(){return crypto.randomUUID()}function oldItems(){try{return JSON.parse(localStorage.getItem(OLD_KEY)||"[]")}catch{return[]}}function defaults(){const old=oldItems();return[{id:uid(),name:"Panel Beating",items:old.length?old:["Fender","Hood","Door Panel","Quarter Panel","Rocker Panel","Bumper","Radiator Support"].map(name=>({id:uid(),name,image:"",youtube:"",notes:""}))},{id:uid(),name:"Mechanics",items:[]}]}function load(){try{const x=JSON.parse(localStorage.getItem(KEY)||"null");return Array.isArray(x)?x:defaults()}catch{return defaults()}}let hubs=load(),hubId=hubs[0]?.id||null,itemId=hubs[0]?.items?.[0]?.id||null;function save(){localStorage.setItem(KEY,JSON.stringify(hubs))}function esc(v){return String(v).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;")}function norm(v){v=(v||"").trim();return !v?"":/^https?:\/\//i.test(v)?v:"https://"+v}function yid(v){try{const u=new URL(norm(v));if(u.hostname.includes("youtu.be"))return u.pathname.split("/")[1]||"";if(u.hostname.includes("youtube.com")){if(u.pathname==="/watch")return u.searchParams.get("v")||"";return u.pathname.match(/\/(?:shorts|embed|live)\/([^/?]+)/)?.[1]||""}}catch{}return""}function linkType(v){const s=(v||"").trim().toLowerCase();if(!s)return"empty";if(yid(s)||/(youtube\.com|youtu\.be|facebook\.com|fb\.watch|tiktok\.com|instagram\.com).*?(watch|video|videos|reel|reels|shorts|\/v\/|youtu)/i.test(s)||/\.(mp4|webm|mov|m4v)(\?|#|$)/i.test(s))return"video";if(/\.(jpg|jpeg|png|gif|webp|bmp|svg|avif)(\?|#|$)/i.test(s)||/(images?|photos?|picture|img)[\/.?=_-]/i.test(s))return"image";return"website"}function hub(){return hubs.find(h=>h.id===hubId)}function item(){return hub()?.items.find(i=>i.id===itemId)}function migrate(i){if(!i.links)i.links=i.image?[{id:uid(),title:i.image,url:i.image}]:[];if(!i.videos)i.videos=i.youtube?[{id:uid(),title:i.youtube,url:i.youtube}]:[];if(i.videos.length>1)i.videos=i.videos.slice(-1);if(i.name==="Saved Link"){const url=i.links.at(-1)?.url||i.videos.at(-1)?.url;if(url)i.name=siteName(url)}return i}function warn(m){alert("⚠️ "+m)}async function videoTitle(url){try{const r=await fetch('/api/video-title?url='+encodeURIComponent(url));if(r.ok){const data=await r.json();return data.title||'Untitled Video'}}catch{}return 'Untitled Video'}const hubList=$("hubList"),hubSearch=$("hubSearch"),hubEmpty=$("hubEmpty"),hubWorkspace=$("hubWorkspace"),hubTitle=$("hubTitle"),itemList=$("itemList"),itemSearch=$("itemSearch"),libraryCount=$("libraryCount"),itemEmpty=$("itemEmpty"),detailCard=$("detailCard"),detailName=$("detailName"),mainPartName=$("mainPartName"),notesArea=$("notesArea"),videoPreview=$("videoPreview"),videoThumb=$("videoThumb"),noPreview=$("noPreview"),imageLinksList=$("imageLinksList"),videoLinksList=$("videoLinksList");function renderHubs(){const q=hubSearch.value.trim().toLowerCase();hubList.innerHTML="";hubs.filter(h=>h.name.toLowerCase().includes(q)).forEach(h=>{const b=document.createElement("button");b.className="part-item"+(h.id===hubId?" active":"");b.innerHTML=`<div class="part-icon">▣</div><div><div class="part-name">${esc(h.name)}</div><div class="part-sub">${h.items.length} library item${h.items.length===1?"":"s"}</div></div><div class="chev">›</div>`;b.onclick=()=>{hubId=h.id;itemId=h.items[0]?.id||null;showLibraryDetails(false);renderAll()};appendLibraryRow(b,h,null,true)})}function renderHub(){const h=hub();if(!h){hubEmpty.classList.remove("hidden");hubWorkspace.classList.add("hidden");return}hubEmpty.classList.add("hidden");hubWorkspace.classList.remove("hidden");hubTitle.textContent=h.name;renderItems()}function renderItems(){const h=hub();if(!h)return;if(selectionHub!==h.id){selectedItems.clear();selectionHub=h.id}for(const id of selectedItems)if(!h.items.some(i=>i.id===id))selectedItems.delete(id);libraryCount.textContent=`${h.items.length} saved item${h.items.length===1?"":"s"}`;itemList.innerHTML="";const q=itemSearch.value.trim().toLowerCase();h.items.filter(i=>i.name.toLowerCase().includes(q)).forEach(i=>{migrate(i);const b=document.createElement("button");b.className="part-item"+(i.id===itemId?" active":"");b.innerHTML=`<div class="part-icon">◫</div><div><div class="part-name">${esc(i.name)}</div><div class="item-saved-date">${esc(savedDate(i.savedAt))}</div></div><div class="chev">›</div>`;b.onclick=()=>{itemId=i.id;showLibraryDetails(true);renderItems();$("libraryBack").focus()};appendLibraryRow(b,i,h)});updateSelectionControls();renderDetail()}function renderDetail(){const i=item();if(!i){itemEmpty.classList.remove("hidden");detailCard.classList.add("hidden");return}migrate(i);itemEmpty.classList.add("hidden");detailCard.classList.remove("hidden");detailName.textContent=i.name;mainPartName.value=i.name;notesArea.value=i.notes||"";renderSaved(i)}function renderSaved(i){
+const OLD_KEY="panel_beater_study_parts_v1",KEY="mb_future_knowledge_hubs_v1";const $=id=>document.getElementById(id);function uid(){return crypto.randomUUID()}function oldItems(){try{return JSON.parse(localStorage.getItem(OLD_KEY)||"[]")}catch{return[]}}function defaults(){return[{id:uid(),name:"New Category",items:[]}]}function load(){try{const x=JSON.parse(localStorage.getItem(KEY)||"null");return Array.isArray(x)?x:defaults()}catch{return defaults()}}let hubs=load(),hubId=hubs[0]?.id||null,itemId=hubs[0]?.items?.[0]?.id||null;function save(){localStorage.setItem(KEY,JSON.stringify(hubs))}function esc(v){return String(v).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;")}function norm(v){v=(v||"").trim();return !v?"":/^https?:\/\//i.test(v)?v:"https://"+v}function yid(v){try{const u=new URL(norm(v));if(u.hostname.includes("youtu.be"))return u.pathname.split("/")[1]||"";if(u.hostname.includes("youtube.com")){if(u.pathname==="/watch")return u.searchParams.get("v")||"";return u.pathname.match(/\/(?:shorts|embed|live)\/([^/?]+)/)?.[1]||""}}catch{}return""}function linkType(v){const s=(v||"").trim().toLowerCase();if(!s)return"empty";if(yid(s)||/(youtube\.com|youtu\.be|facebook\.com|fb\.watch|tiktok\.com|instagram\.com).*?(watch|video|videos|reel|reels|shorts|\/v\/|youtu)/i.test(s)||/\.(mp4|webm|mov|m4v)(\?|#|$)/i.test(s))return"video";if(/\.(jpg|jpeg|png|gif|webp|bmp|svg|avif)(\?|#|$)/i.test(s)||/(images?|photos?|picture|img)[\/.?=_-]/i.test(s))return"image";return"website"}function hub(){return hubs.find(h=>h.id===hubId)}function item(){return hub()?.items.find(i=>i.id===itemId)}function migrate(i){if(!i.links)i.links=i.image?[{id:uid(),title:i.image,url:i.image}]:[];if(!i.videos)i.videos=i.youtube?[{id:uid(),title:i.youtube,url:i.youtube}]:[];if(i.videos.length>1)i.videos=i.videos.slice(-1);if(i.name==="Saved Link"){const url=i.links.at(-1)?.url||i.videos.at(-1)?.url;if(url)i.name=siteName(url)}return i}function warn(m){alert("Warning: "+m)}async function videoTitle(url){try{const r=await fetch('/api/video-title?url='+encodeURIComponent(url));if(r.ok){const data=await r.json();return data.title||'Untitled Video'}}catch{}return 'Untitled Video'}const hubList=$("hubList"),hubSearch=$("hubSearch"),hubEmpty=$("hubEmpty"),hubWorkspace=$("hubWorkspace"),hubTitle=$("hubTitle"),itemList=$("itemList"),itemSearch=$("itemSearch"),libraryCount=$("libraryCount"),itemEmpty=$("itemEmpty"),detailCard=$("detailCard"),detailName=$("detailName"),mainPartName=$("mainPartName"),notesArea=$("notesArea"),videoPreview=$("videoPreview"),videoThumb=$("videoThumb"),noPreview=$("noPreview"),imageLinksList=$("imageLinksList"),videoLinksList=$("videoLinksList");function openHub(h){
+  if(h.locked){toggleHubLock(h);return}
+  hubId=h.id;itemId=h.items[0]?.id||null;showLibraryDetails(false);renderAll();
+}
+function toggleHubLock(h,event){
+  event?.preventDefault();event?.stopPropagation();
+  requireAuth('Login first to use Category Lock.',()=>window.categoryLock(h));
+}
+function renderHubs(){
+  const q=hubSearch.value.trim().toLowerCase();
+  hubList.innerHTML='';
+  hubs.filter(h=>h.name.toLowerCase().includes(q)).forEach(h=>{
+    const b=document.createElement('button');
+    b.className='part-item'+(h.id===hubId?' active':'');
+    b.innerHTML='<div class="part-icon" aria-label="'+(h.locked?'Locked':'')+'">'+(h.locked?'&#128274;':'')+'</div><div><div class="part-name">'+esc(h.name)+'</div><div class="part-sub">'+(h.locked?(h.lockedCount??h.items.length):h.items.length)+' library items</div></div><div class="chev">&gt;</div>';
+    b.onclick=()=>openHub(h);
+    appendLibraryRow(b,h,null,true);
+  });
+}
+function renderHub(){const h=hub();if(!h||h.locked){hubEmpty.classList.remove("hidden");hubWorkspace.classList.add("hidden");return}hubEmpty.classList.add("hidden");hubWorkspace.classList.remove("hidden");hubTitle.textContent=h.name;renderItems()}function renderItems(){const h=hub();if(!h)return;if(selectionHub!==h.id){selectedItems.clear();selectionHub=h.id}for(const id of selectedItems)if(!h.items.some(i=>i.id===id))selectedItems.delete(id);libraryCount.textContent=`${h.items.length} saved item${h.items.length===1?"":"s"}`;itemList.innerHTML="";const q=itemSearch.value.trim().toLowerCase();h.items.filter(i=>i.name.toLowerCase().includes(q)).forEach(i=>{migrate(i);const b=document.createElement("button");b.className="part-item"+(i.id===itemId?" active":"");b.innerHTML=`<div class="part-icon">&bull;</div><div><div class="part-name">${esc(i.name)}</div><div class="item-saved-date">${esc(savedDate(i.savedAt))}</div></div><div class="chev">&gt;</div>`;b.onclick=()=>{itemId=i.id;showLibraryDetails(true);renderItems();$("libraryBack").focus()};appendLibraryRow(b,i,h)});updateSelectionControls();renderDetail()}function renderDetail(){const i=item();if(!i){itemEmpty.classList.remove("hidden");detailCard.classList.add("hidden");return}migrate(i);itemEmpty.classList.add("hidden");detailCard.classList.remove("hidden");detailName.textContent=i.name;mainPartName.value=i.name;notesArea.value=i.notes||"";renderSaved(i)}function renderSaved(i){
   imageLinksList.replaceChildren();videoLinksList.replaceChildren();
   i.links.forEach(link=>imageLinksList.appendChild(savedLinkRow(link,false)));
   i.videos.forEach(link=>videoLinksList.appendChild(savedLinkRow(link,true)));
@@ -20,7 +39,7 @@ function savedLinkRow(entry,isVideo){
   copy.onclick=copyUrl;
   const share=document.createElement('button');share.type='button';share.textContent='SHARE';share.setAttribute('aria-label','Share '+(isVideo?'video':'image')+' link');
   share.onclick=async()=>{
-    if(!navigator.share){await copyUrl();if(status.textContent==='Link copied.')status.textContent='Link copied — paste it to share.';return}
+    if(!navigator.share){await copyUrl();if(status.textContent==='Link copied.')status.textContent='Link copied - paste it to share.';return}
     try{await navigator.share({url});status.textContent='Shared.'}
     catch(error){if(error.name!=='AbortError')status.textContent='Sharing unavailable. Use COPY to share the link.'}
   };
@@ -30,7 +49,7 @@ function preview(v){
   const player=$('inlineVideoPlayer');player.replaceChildren();player.hidden=true;
   const id=yid(v);videoPreview.classList.toggle('hidden',!id);noPreview.classList.toggle('hidden',!!id);
   noPreview.disabled=!v;
-  noPreview.textContent=v?'No preview\nClick to Open ↗':'No link saved';
+  noPreview.textContent=v?'No preview\nClick to Open':'No link saved';
   noPreview.onclick=v?()=>playVideo(v):null;
   videoThumb.onerror=()=>{videoPreview.classList.add('hidden');noPreview.classList.remove('hidden')};
   videoThumb.hidden=!id;if(id)videoThumb.src=`https://img.youtube.com/vi/${id}/hqdefault.jpg`;
@@ -49,13 +68,13 @@ async function savePastedLink(field,createNew){
   const h=hub();if(!h)return;
   let i=createNew?null:item();
   if(!i){i={id:uid(),name:'Saved Link',links:[],videos:[],notes:''};h.items.push(i)}
-  const kind=linkType(url.href),isVideo=kind==='video',fallback=siteName(url.href);
+  const kind=linkType(url.href),isVideo=kind==='video',isYouTube=!!yid(url.href),fallback=siteName(url.href);
   const savedAt=new Date().toISOString();
   const entry={id:uid(),url:url.href,title:fallback,savedAt};i.savedAt=savedAt;
   if(isVideo)i.videos=[entry];else i.links=[entry];
   i.name=fallback;
   if(!createNew)i.notes=notesArea.value;
-  field.value='';save();renderAll();status.textContent='Link saved. Finding title…';
+  field.value='';save();renderAll();status.textContent='Link saved. Finding title...';
   const found=await videoTitle(url.href),title=found==='Untitled Video'?fallback:found;
   if(!hubs.includes(h)||!h.items.includes(i)||!(isVideo?i.videos:i.links).includes(entry))return;
   entry.title=title;
@@ -76,7 +95,7 @@ for(const [id,createNew] of [['quickLink',true]]){
   field.addEventListener('paste',event=>{const text=event.clipboardData?.getData('text');if(!text)return;event.preventDefault();field.value=text.trim();savePastedLink(field,createNew)});
   field.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();savePastedLink(field,createNew)}});
 }
-$("saveChangesBtn").onclick=()=>{const i=item();if(!i)return;i.name=mainPartName.value.trim()||i.name;i.notes=notesArea.value;save();renderAll();const b=$("saveChangesBtn");b.textContent="SAVED ✓";setTimeout(()=>b.textContent="💾 SAVE CHANGES",1200)};hubSearch.oninput=renderHubs;itemSearch.oninput=renderItems;renderAll();
+$("saveChangesBtn").onclick=()=>{const i=item();if(!i)return;i.name=mainPartName.value.trim()||i.name;i.notes=notesArea.value;save();renderAll();const b=$("saveChangesBtn");b.textContent="SAVED";setTimeout(()=>b.textContent="SAVE CHANGES",1200)};hubSearch.oninput=renderHubs;itemSearch.oninput=renderItems;renderAll();
 function appendLibraryRow(button, entry, owner, isHub = false) {
   button.setAttribute('data-entry-id',entry.id);
   const row = document.createElement('div');
@@ -84,7 +103,7 @@ function appendLibraryRow(button, entry, owner, isHub = false) {
   const menu = document.createElement('details');
   menu.className = 'library-item-menu';
   const trigger = document.createElement('summary');
-  trigger.textContent = '⋮';
+  trigger.textContent = '\u22ee';
   trigger.setAttribute('aria-label', 'Actions for ' + entry.name);
   const actions = document.createElement('div');
   actions.className = 'library-item-actions';
@@ -117,7 +136,9 @@ function appendLibraryRow(button, entry, owner, isHub = false) {
     }
     save(); renderAll();
   };
-  actions.append(rename, remove); menu.append(trigger, actions);
+  actions.append(rename, remove);
+  if(isHub){const lock=document.createElement('button');lock.type='button';lock.textContent=entry.locked?'Unlock':'Lock';lock.onclick=()=>{menu.open=false;toggleHubLock(entry)};actions.appendChild(lock)}
+  menu.append(trigger, actions);
   menu.addEventListener('toggle', () => {
     if (menu.open) document.querySelectorAll('.library-item-menu[open]').forEach(other => {
       if (other !== menu) other.open = false;
@@ -136,7 +157,7 @@ function appendLibraryRow(button, entry, owner, isHub = false) {
     const card=document.createElement('div');
     card.className='library-title-card'+(entry.id===itemId?' active':'');
     rename.className='small-btn item-rename';rename.textContent='RENAME';
-    card.append(rename,button);row.appendChild(card);
+    card.append(button,rename);row.appendChild(card);
   }
   (isHub ? hubList : itemList).appendChild(row);
 }
@@ -213,4 +234,38 @@ $('deleteSelectedItems').onclick=()=>{
   owner.items=owner.items.filter(i=>!selectedItems.has(i.id));
   if(selectedItems.has(itemId))itemId=null;
   selectedItems.clear();showLibraryDetails(false);save();renderAll();
+};
+
+
+
+
+
+async function authRequest(path,options={}){const r=await fetch(path,{...options,headers:{'Content-Type':'application/json',...(options.headers||{})}});let data={};try{data=await r.json()}catch{}return {r,data}}
+let currentUser=null;
+let pendingAuthAction=null;
+function hideAuth(){const gate=$('authGate');if(gate)gate.hidden=true;document.body.classList.remove('auth-pending','auth-open');const status=$('authStatus');if(status)status.textContent=''}
+function showAuth(message='Verify your email to continue.',afterLogin=null){pendingAuthAction=afterLogin;document.body.classList.remove('auth-pending');document.body.classList.add('auth-open');const gate=$('authGate');if(gate){gate.hidden=false;gate.style.display=''}const msg=$('authMessage');if(msg)msg.textContent=message;const status=$('authStatus');if(status)status.textContent='';const step=$('authCodeStep');if(step)step.hidden=true;const code=$('authCode');if(code)code.value='';setTimeout(()=>$('authEmail')?.focus({preventScroll:true}),0)}
+function showAuthenticated(user){currentUser=user||null;document.body.classList.remove('auth-pending');const email=$('accountEmail');if(email)email.textContent=user?.email||'';const out=$('logoutBtn');if(out)out.hidden=!user;hideAuth()}
+async function initAuthGate(){try{const {r,data}=await authRequest('/api/auth/me',{method:'GET'});if(r.ok&&data.user){showAuthenticated(data.user);return}}catch{}currentUser=null;document.body.classList.remove('auth-pending');const gate=$('authGate');if(gate)gate.hidden=true;const out=$('logoutBtn');if(out)out.hidden=true}
+async function requestAuthCode(){const email=$('authEmail').value.trim();const status=$('authStatus');status.textContent='Sending code...';try{const {r,data}=await authRequest('/api/auth/request-code',{method:'POST',body:JSON.stringify({email})});if(!r.ok){status.textContent=data.error||'Could not send code.';return}status.textContent=data.demoMode?'LOCAL DEMO: Use code 123456. No email was sent.':'Code created. Get the code from the local server window.';const step=$('authCodeStep');if(step)step.hidden=false;setTimeout(()=>$('authCode')?.focus(),0)}catch{status.textContent='Unable to connect to the local server.'}}
+async function verifyAuthCode(){const email=$('authEmail').value.trim(),code=$('authCode').value.trim(),status=$('authStatus');status.textContent='Verifying...';try{const {r,data}=await authRequest('/api/auth/verify-code',{method:'POST',body:JSON.stringify({email,code})});if(!r.ok){status.textContent=data.error||'Verification failed.';return}showAuthenticated(data.user);const action=pendingAuthAction;pendingAuthAction=null;if(typeof action==='function')action(data.user)}catch{status.textContent='Unable to connect to the local server.'}}
+$('sendCodeBtn').onclick=requestAuthCode;$('verifyCodeBtn').onclick=verifyAuthCode;$('authCancelBtn').onclick=()=>{pendingAuthAction=null;hideAuth()};$('authEmail').addEventListener('keydown',e=>{if(e.key==='Enter')requestAuthCode()});$('authCode').addEventListener('keydown',e=>{if(e.key==='Enter')verifyAuthCode()});$('authCode').addEventListener('input',e=>{e.target.value=e.target.value.replace(/\D/g,'').slice(0,6)});$('logoutBtn').onclick=async()=>{try{await authRequest('/api/auth/logout',{method:'POST',body:'{}'})}catch{}currentUser=null;const email=$('accountEmail');if(email)email.textContent='';const out=$('logoutBtn');if(out)out.hidden=true;hideAuth()};initAuthGate();
+function requireAuth(message,action){if(currentUser){if(typeof action==='function')action(currentUser);return true}showAuth(message,action);return false}
+
+
+
+window.categoryLock=async h=>{
+  if(h.lockOwnerId&&h.lockOwnerId!==currentUser?.id){alert('Sign in with the account that locked this category.');return}
+  const unlocking=!!(h.locked&&h.lockPayload);
+  // Older locks had no password: the authenticated owner sets one on first use.
+  const result=await window.categoryPasswordDialog(h,unlocking);
+  if(!result||!hubs.includes(h))return;
+  const next={...h};
+  if(unlocking){next.items=result.items;next.locked=false;delete next.lockPayload;delete next.lockedCount;delete next.lockOwnerId}
+  else{next.lockPayload=result;next.lockedCount=h.items.length;next.items=[];next.locked=true;next.lockOwnerId=currentUser.id}
+  try{localStorage.setItem(KEY,JSON.stringify(hubs.map(entry=>entry===h?next:entry)))}
+  catch{alert('Could not save the lock change. Your category has not changed.');return}
+  Object.keys(h).forEach(key=>delete h[key]);Object.assign(h,next);
+  if(hubId===h.id){hubId=null;itemId=null}
+  renderAll();if(unlocking)openHub(h);
 };

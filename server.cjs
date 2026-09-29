@@ -4,9 +4,11 @@ const path = require('node:path');
 const { sessionConfig } = require('./server/session.cjs');
 const { helperStatus, startHelper } = require('./server/helper.cjs');
 const { videoTitle } = require('./server/video-title.cjs');
+const auth = require('./server/auth.cjs');
 
 // Explicit allowlist: never serve .env, backend code, tests, or repository files.
 const assets = new Map([
+  ['/category-lock.js', ['category-lock.js', 'text/javascript']],
   ['/', ['index.html', 'text/html']], ['/index.html', ['index.html', 'text/html']],
   ['/app.js', ['app.js', 'text/javascript']], ['/style.css', ['style.css', 'text/css']],
   ['/ai-listener.js', ['ai-listener.js', 'text/javascript']],
@@ -27,6 +29,85 @@ function createServer({ apiKey = process.env.OPENAI_API_KEY, model = process.env
     const localHost = `localhost:${req.socket.localPort}`;
     if (![expectedHost, localHost].includes(req.headers.host)) return send(403, { error: 'Local access only.' });
     const pathname = new URL(req.url, `http://${expectedHost}`).pathname;
+
+    const cookies=Object.fromEntries(
+      String(req.headers.cookie||'').split(';').map(x=>x.trim()).filter(Boolean).map(x=>{
+        const i=x.indexOf('=');
+        return i<0?[x,'']:[x.slice(0,i),decodeURIComponent(x.slice(i+1))];
+      })
+    );
+
+    const readJson=async()=>{
+      const chunks=[];let bytes=0;
+      for await(const chunk of req){
+        bytes+=chunk.length;
+        if(bytes>20000) throw Error('too-large');
+        chunks.push(chunk);
+      }
+      return JSON.parse(Buffer.concat(chunks).toString()||'{}');
+    };
+
+    const sameOrigin=()=>req.headers.origin===`http://${req.headers.host}` &&
+      String(req.headers['content-type']||'').startsWith('application/json');
+
+    const setSessionCookie=value=>res.setHeader(
+      'Set-Cookie',
+      `mb_session=${encodeURIComponent(value)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=2592000`
+    );
+
+    const clearSessionCookie=()=>res.setHeader(
+      'Set-Cookie',
+      'mb_session=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0'
+    );
+
+    if(req.method==='GET'&&pathname==='/api/auth/me'){
+      const user=auth.getSessionUser(cookies.mb_session);
+      return user?send(200,{user}):send(401,{error:'Not signed in.'});
+    }
+
+    if(req.method==='POST'&&pathname==='/api/auth/request-code'){
+      if(!sameOrigin()) return send(403,{error:'Same-origin JSON request required.'});
+      try{
+        const body=await readJson();
+        const email=String(body.email||'').trim().toLowerCase();
+        if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||email.length>254)
+          return send(400,{error:'Enter a valid email address.'});
+        const code=auth.createLoginCode(email);
+        console.log('[DEV LOGIN CODE] '+email+': '+code);
+        return send(200,{ok:true,message:'Verification code created.',demoMode:process.env.DEV_SAMPLE_LOGIN==='true'&&process.env.NODE_ENV!=='production'});
+      }catch{
+        return send(400,{error:'Could not create verification code.'});
+      }
+    }
+
+    if(req.method==='POST'&&pathname==='/api/auth/verify-code'){
+      if(!sameOrigin()) return send(403,{error:'Same-origin JSON request required.'});
+      try{
+        const body=await readJson();
+        const email=String(body.email||'').trim().toLowerCase();
+        const code=String(body.code||'').trim();
+        if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||email.length>254)
+          return send(400,{error:'Enter a valid email address.'});
+        if(!/^\d{6}$/.test(code))
+          return send(400,{error:'Enter the 6-digit code.'});
+        if(!auth.verifyLoginCode(email,code))
+          return send(401,{error:'Invalid or expired verification code.'});
+        const user=auth.ensureOtpUser(email);
+        const token=auth.createSession(user.id);
+        setSessionCookie(token);
+        return send(200,{user:{id:user.id,email:user.email,created_at:user.created_at}});
+      }catch{
+        return send(400,{error:'Could not verify code.'});
+      }
+    }
+
+    if(req.method==='POST'&&pathname==='/api/auth/logout'){
+      if(!sameOrigin()) return send(403,{error:'Same-origin JSON request required.'});
+      auth.deleteSession(cookies.mb_session);
+      clearSessionCookie();
+      return send(200,{ok:true});
+    }
+
     if (req.method === 'GET' && pathname === '/api/health') return send(200, { configured: !!apiKey, model });
     if (req.method === 'GET' && pathname === '/api/helper/status') return send(200, await helperStatus());
     if (req.method === 'GET' && pathname === '/api/video-title') {
@@ -86,7 +167,7 @@ if (require.main === module) {
   // This avoids silently using an old API key after the user updates .env.
   try {
     const env = require('node:util').parseEnv(require('node:fs').readFileSync(path.join(__dirname, '.env'), 'utf8'));
-    for (const name of ['OPENAI_API_KEY', 'OPENAI_REALTIME_MODEL', 'PORT', 'AUDIO_HELPER_PORT']) {
+    for (const name of ['OPENAI_API_KEY', 'OPENAI_REALTIME_MODEL', 'PORT', 'AUDIO_HELPER_PORT', 'DEV_SAMPLE_LOGIN']) {
       if (env[name]?.trim()) process.env[name] = env[name];
     }
   } catch (error) {
@@ -112,3 +193,4 @@ if (require.main === module) {
     .on('error', () => { console.error('Could not start local server. Check whether the port is already in use.'); process.exitCode = 1; });
 }
 module.exports = { createServer };
+
