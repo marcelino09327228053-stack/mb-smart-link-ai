@@ -267,6 +267,64 @@ async function hashCategoryPassword(value){
   return Array.from(new Uint8Array(bytes),b=>b.toString(16).padStart(2,'0')).join('');
 }
 
+function closeCategoryPasswordModal(){
+  const gate=$('categoryPasswordGate');
+  if(gate)gate.hidden=true;
+  $('currentCategoryPassword').value='';
+  $('newCategoryPassword').value='';
+  $('confirmCategoryPassword').value='';
+  $('categoryPasswordStatus').textContent='';
+}
+
+function openCategoryPasswordSettings(){
+  const gate=$('categoryPasswordGate');
+  const hasPassword=!!localStorage.getItem(CATEGORY_PASSWORD_KEY);
+  $('categoryPasswordTitle').textContent=hasPassword?'Change Password':'Create Password';
+  $('categoryPasswordMessage').textContent=hasPassword
+    ?'Change the master password used for all category locks.'
+    :'Create one master password for all category locks.';
+  $('currentPasswordWrap').hidden=!hasPassword;
+  $('saveCategoryPasswordBtn').textContent=hasPassword?'CHANGE PASSWORD':'CREATE PASSWORD';
+  $('categoryPasswordStatus').textContent='';
+  $('currentCategoryPassword').value='';
+  $('newCategoryPassword').value='';
+  $('confirmCategoryPassword').value='';
+  gate.hidden=false;
+  setTimeout(()=>(hasPassword?$('currentCategoryPassword'):$('newCategoryPassword')).focus({preventScroll:true}),0);
+}
+
+$('categorySettingsBtn').onclick=openCategoryPasswordSettings;
+$('cancelCategoryPasswordBtn').onclick=closeCategoryPasswordModal;
+
+$('saveCategoryPasswordBtn').onclick=async()=>{
+  const status=$('categoryPasswordStatus');
+  const existing=localStorage.getItem(CATEGORY_PASSWORD_KEY);
+  const current=$('currentCategoryPassword').value;
+  const next=$('newCategoryPassword').value;
+  const confirm=$('confirmCategoryPassword').value;
+
+  if(existing){
+    const currentHash=await hashCategoryPassword(current);
+    if(currentHash!==existing){
+      status.textContent='Current password is incorrect.';
+      return;
+    }
+  }
+
+  if(next.length<4){
+    status.textContent='Password must be at least 4 characters.';
+    return;
+  }
+
+  if(next!==confirm){
+    status.textContent='Passwords do not match.';
+    return;
+  }
+
+  localStorage.setItem(CATEGORY_PASSWORD_KEY,await hashCategoryPassword(next));
+  closeCategoryPasswordModal();
+};
+
 window.categoryLock=async h=>{
   if(h.lockOwnerId&&h.lockOwnerId!==currentUser?.id){
     alert('Sign in with the account that locked this category.');
