@@ -260,15 +260,46 @@ function requireAuth(message,action){if(currentUser){if(typeof action==='functio
 
 
 
+async function hashCategoryPassword(value){
+  const bytes=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value));
+  return Array.from(new Uint8Array(bytes),b=>b.toString(16).padStart(2,'0')).join('');
+}
+
 window.categoryLock=async h=>{
-  if(h.lockOwnerId&&h.lockOwnerId!==currentUser?.id){alert('Sign in with the account that locked this category.');return}
+  if(h.lockOwnerId&&h.lockOwnerId!==currentUser?.id){
+    alert('Sign in with the account that locked this category.');
+    return;
+  }
+
   if(h.locked){
+    const password=prompt('Enter category password to unlock:');
+    if(password===null)return;
+    const hash=await hashCategoryPassword(password);
+    if(hash!==h.lockPasswordHash){
+      alert('Incorrect password.');
+      return;
+    }
     h.locked=false;
+    delete h.lockPasswordHash;
     delete h.lockOwnerId;
   }else{
+    const password=prompt('Create category password:');
+    if(password===null)return;
+    if(password.length<4){
+      alert('Password must be at least 4 characters.');
+      return;
+    }
+    const confirmation=prompt('Confirm category password:');
+    if(confirmation===null)return;
+    if(password!==confirmation){
+      alert('Passwords do not match.');
+      return;
+    }
+    h.lockPasswordHash=await hashCategoryPassword(password);
     h.locked=true;
     h.lockOwnerId=currentUser.id;
   }
+
   save();
   renderAll();
 };
