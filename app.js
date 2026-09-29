@@ -109,8 +109,11 @@ function appendLibraryRow(button, entry, owner, isHub = false) {
   actions.className = 'library-item-actions';
   const rename = document.createElement('button');
   rename.type = 'button'; rename.textContent = 'Rename';
+  rename.disabled = !!(isHub && entry.locked);
+  rename.title = rename.disabled ? 'Unlock this category first.' : '';
   rename.onclick = () => {
     menu.open = false;
+    if (isHub && entry.locked) { alert('Unlock this category first.'); return; }
     const name = prompt(isHub ? 'Rename category:' : 'Rename library item:', entry.name)?.trim();
     if (!name) return;
     entry.name = name; save(); renderAll();
@@ -118,8 +121,11 @@ function appendLibraryRow(button, entry, owner, isHub = false) {
   const remove = document.createElement('button');
   remove.type = 'button'; remove.textContent = 'Delete';
   remove.className = 'item-delete';
+  remove.disabled = !!(isHub && entry.locked);
+  remove.title = remove.disabled ? 'Unlock this category first.' : '';
   remove.onclick = () => {
     menu.open = false;
+    if (isHub && entry.locked) { alert('Unlock this category first.'); return; }
     const warning = isHub
       ? `Are you sure you want to delete category "${entry.name}" and all ${entry.items.length} library item(s) inside it? This cannot be undone.`
       : `Delete "${entry.name}"?`;
