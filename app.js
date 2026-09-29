@@ -365,7 +365,7 @@ window.categoryLock=async h=>{
     delete h.lockOwnerId;
   }else{
     if(!masterHash){
-      alert('Create your category password first using the settings gear.');
+      pendingCategoryToLock=h;
       openCategoryPasswordSettings();
       return;
     }
