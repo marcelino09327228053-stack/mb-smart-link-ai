@@ -331,13 +331,17 @@ window.categoryLock=async h=>{
     return;
   }
 
-  let masterHash=localStorage.getItem(CATEGORY_PASSWORD_KEY);
+  const masterHash=localStorage.getItem(CATEGORY_PASSWORD_KEY);
 
   if(h.locked){
+    if(!masterHash){
+      alert('No category password is set. Create one in Category Settings first.');
+      return;
+    }
     const password=prompt('Enter category password to unlock:');
     if(password===null)return;
     const hash=await hashCategoryPassword(password);
-    if(!masterHash||hash!==masterHash){
+    if(hash!==masterHash){
       alert('Incorrect password.');
       return;
     }
@@ -345,30 +349,10 @@ window.categoryLock=async h=>{
     delete h.lockOwnerId;
   }else{
     if(!masterHash){
-      const password=prompt('Create master category password:');
-      if(password===null)return;
-      if(password.length<4){
-        alert('Password must be at least 4 characters.');
-        return;
-      }
-      const confirmation=prompt('Confirm master category password:');
-      if(confirmation===null)return;
-      if(password!==confirmation){
-        alert('Passwords do not match.');
-        return;
-      }
-      masterHash=await hashCategoryPassword(password);
-      localStorage.setItem(CATEGORY_PASSWORD_KEY,masterHash);
-    }else{
-      const password=prompt('Enter category password to lock:');
-      if(password===null)return;
-      const hash=await hashCategoryPassword(password);
-      if(hash!==masterHash){
-        alert('Incorrect password.');
-        return;
-      }
+      alert('Create your category password first using the settings gear.');
+      openCategoryPasswordSettings();
+      return;
     }
-
     h.locked=true;
     h.lockOwnerId=currentUser.id;
   }
