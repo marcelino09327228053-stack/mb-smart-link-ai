@@ -256,16 +256,13 @@ function requireAuth(message,action){if(currentUser){if(typeof action==='functio
 
 window.categoryLock=async h=>{
   if(h.lockOwnerId&&h.lockOwnerId!==currentUser?.id){alert('Sign in with the account that locked this category.');return}
-  const unlocking=!!(h.locked&&h.lockPayload);
-  // Older locks had no password: the authenticated owner sets one on first use.
-  const result=await window.categoryPasswordDialog(h,unlocking);
-  if(!result||!hubs.includes(h))return;
-  const next={...h};
-  if(unlocking){next.items=result.items;next.locked=false;delete next.lockPayload;delete next.lockedCount;delete next.lockOwnerId}
-  else{next.lockPayload=result;next.lockedCount=h.items.length;next.items=[];next.locked=true;next.lockOwnerId=currentUser.id}
-  try{localStorage.setItem(KEY,JSON.stringify(hubs.map(entry=>entry===h?next:entry)))}
-  catch{alert('Could not save the lock change. Your category has not changed.');return}
-  Object.keys(h).forEach(key=>delete h[key]);Object.assign(h,next);
-  if(hubId===h.id){hubId=null;itemId=null}
-  renderAll();if(unlocking)openHub(h);
+  if(h.locked){
+    h.locked=false;
+    delete h.lockOwnerId;
+  }else{
+    h.locked=true;
+    h.lockOwnerId=currentUser.id;
+  }
+  save();
+  renderAll();
 };
