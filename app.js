@@ -338,6 +338,15 @@ $('saveCategoryPasswordBtn').onclick=async()=>{
   }
 
   localStorage.setItem(CATEGORY_PASSWORD_KEY,await hashCategoryPassword(next));
+
+  if(pendingCategoryToLock){
+    pendingCategoryToLock.locked=true;
+    pendingCategoryToLock.lockOwnerId=currentUser?.id||null;
+    pendingCategoryToLock=null;
+    save();
+    renderAll();
+  }
+
   closeCategoryPasswordModal();
 };
 
