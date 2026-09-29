@@ -5,7 +5,11 @@ const OLD_KEY="panel_beater_study_parts_v1",KEY="mb_future_knowledge_hubs_v1";co
 }
 function toggleHubLock(h,event){
   event?.preventDefault();event?.stopPropagation();
-  requireAuth('Login first to use Category Lock.',()=>window.categoryLock(h));
+  if(!currentUser){
+    showAuth('Login first to use Category Lock.');
+    return;
+  }
+  window.categoryLock(h);
 }
 function renderHubs(){
   const q=hubSearch.value.trim().toLowerCase();
