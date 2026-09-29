@@ -296,6 +296,17 @@ function openCategoryPasswordSettings(){
 $('categorySettingsBtn').onclick=openCategoryPasswordSettings;
 $('cancelCategoryPasswordBtn').onclick=closeCategoryPasswordModal;
 
+document.querySelectorAll('.password-eye').forEach(button=>{
+  button.onclick=()=>{
+    const input=$(button.dataset.passwordTarget);
+    if(!input)return;
+    const showing=input.type==='text';
+    input.type=showing?'password':'text';
+    button.setAttribute('aria-label',showing?'Show password':'Hide password');
+    button.title=showing?'Show password':'Hide password';
+  };
+});
+
 $('saveCategoryPasswordBtn').onclick=async()=>{
   const status=$('categoryPasswordStatus');
   const existing=localStorage.getItem(CATEGORY_PASSWORD_KEY);
