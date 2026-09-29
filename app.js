@@ -265,6 +265,7 @@ function requireAuth(message,action){if(currentUser){if(typeof action==='functio
 
 
 const CATEGORY_PASSWORD_KEY='mb_category_master_password_hash_v1';
+let pendingCategoryToLock=null;
 
 async function hashCategoryPassword(value){
   const bytes=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value));
