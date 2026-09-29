@@ -298,8 +298,14 @@ function openCategoryPasswordSettings(){
   setTimeout(()=>(hasPassword?$('currentCategoryPassword'):$('newCategoryPassword')).focus({preventScroll:true}),0);
 }
 
-$('categorySettingsBtn').onclick=openCategoryPasswordSettings;
-$('cancelCategoryPasswordBtn').onclick=closeCategoryPasswordModal;
+$('categorySettingsBtn').onclick=()=>{
+  pendingCategoryToLock=null;
+  openCategoryPasswordSettings();
+};
+$('cancelCategoryPasswordBtn').onclick=()=>{
+  pendingCategoryToLock=null;
+  closeCategoryPasswordModal();
+};
 
 document.querySelectorAll('.password-eye').forEach(button=>{
   button.onclick=()=>{
