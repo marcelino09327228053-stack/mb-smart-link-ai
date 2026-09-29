@@ -99,6 +99,19 @@ for(const [id,createNew] of [['quickLink',true]]){
   field.addEventListener('paste',event=>{const text=event.clipboardData?.getData('text');if(!text)return;event.preventDefault();field.value=text.trim();savePastedLink(field,createNew)});
   field.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();savePastedLink(field,createNew)}});
 }
+
+const quickLinkBlinker=document.querySelector('.quick-link-blinker');
+let quickLinkBlinkGreen=false;
+setInterval(()=>{
+  if(!quickLinkBlinker)return;
+  const field=$('quickLink');
+  const shouldHide=document.activeElement===field || Boolean(field.value);
+  quickLinkBlinker.style.display=shouldHide?'none':'flex';
+  if(shouldHide)return;
+  quickLinkBlinkGreen=!quickLinkBlinkGreen;
+  quickLinkBlinker.style.color=quickLinkBlinkGreen?'#39ff88':'#ffffff';
+},500);
+
 $("saveChangesBtn").onclick=()=>{const i=item();if(!i)return;i.name=mainPartName.value.trim()||i.name;i.notes=notesArea.value;save();renderAll();const b=$("saveChangesBtn");b.textContent="SAVED";setTimeout(()=>b.textContent="SAVE CHANGES",1200)};hubSearch.oninput=renderHubs;itemSearch.oninput=renderItems;renderAll();
 function appendLibraryRow(button, entry, owner, isHub = false) {
   button.setAttribute('data-entry-id',entry.id);
