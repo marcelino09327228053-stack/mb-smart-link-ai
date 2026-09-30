@@ -4,9 +4,30 @@ const path = require('node:path');
 const { sessionConfig } = require('./server/session.cjs');
 const { helperStatus, startHelper } = require('./server/helper.cjs');
 const { videoTitle } = require('./server/video-title.cjs');
-const auth = require('./server/auth.cjs');
+try{
+  const env=require('node:util').parseEnv(
+    require('node:fs').readFileSync(path.join(__dirname,'.env'),'utf8')
+  );
+  for(const name of ['OPENAI_API_KEY','OPENAI_REALTIME_MODEL','PORT','AUDIO_HELPER_PORT','DEV_SAMPLE_LOGIN','PUBLIC_ORIGIN','DATABASE_URL','NODE_ENV','PGHOST','PGPORT','PGDATABASE','PGUSER','PGPASSWORD']){
+    if(env[name]?.trim())process.env[name]=env[name];
+  }
+}catch(error){
+  if(error.code!=='ENOENT')throw error;
+}
+
+const usePostgres=!!(process.env.DATABASE_URL||process.env.PGHOST);
+const auth=usePostgres
+  ? require('./server/auth-postgres.cjs')
+  : require('./server/auth.cjs');
+
 let library;
-function getLibrary(){return library ||= require('./server/library.cjs').repository()}
+function getLibrary(){
+  if(library)return library;
+  library=usePostgres
+    ? require('./server/library-postgres.cjs')
+    : require('./server/library.cjs').repository();
+  return library;
+}
 
 // Explicit allowlist: never serve .env, backend code, tests, or repository files.
 const assets = new Map([
@@ -69,7 +90,7 @@ function createServer({ apiKey = process.env.OPENAI_API_KEY, model = process.env
     );
 
     if(req.method==='GET'&&pathname==='/api/auth/me'){
-      const user=auth.getSessionUser(cookies.mb_session);
+      const user=await auth.getSessionUser(cookies.mb_session);
       return user?send(200,{user}):send(401,{error:'Not signed in.'});
     }
 
@@ -80,7 +101,7 @@ function createServer({ apiKey = process.env.OPENAI_API_KEY, model = process.env
         const email=String(body.email||'').trim().toLowerCase();
         if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||email.length>254)
           return send(400,{error:'Enter a valid email address.'});
-        const code=auth.createLoginCode(email,10*60*1000,isLocal);
+        const code=await auth.createLoginCode(email,10*60*1000,isLocal);
         console.log('[DEV LOGIN CODE] '+email+': '+code);
         return send(200,{ok:true,message:'Verification code created.',demoMode:isLocal&&process.env.DEV_SAMPLE_LOGIN==='true'&&process.env.NODE_ENV!=='production'});
       }catch{
@@ -98,10 +119,10 @@ function createServer({ apiKey = process.env.OPENAI_API_KEY, model = process.env
           return send(400,{error:'Enter a valid email address.'});
         if(!/^\d{6}$/.test(code))
           return send(400,{error:'Enter the 6-digit code.'});
-        if(!auth.verifyLoginCode(email,code))
+        if(!await auth.verifyLoginCode(email,code))
           return send(401,{error:'Invalid or expired verification code.'});
-        const user=auth.ensureOtpUser(email);
-        const token=auth.createSession(user.id);
+        const user=await auth.ensureOtpUser(email);
+        const token=await auth.createSession(user.id);
         setSessionCookie(token);
         return send(200,{user:{id:user.id,email:user.email,created_at:user.created_at}});
       }catch{
@@ -111,28 +132,28 @@ function createServer({ apiKey = process.env.OPENAI_API_KEY, model = process.env
 
     if(req.method==='POST'&&pathname==='/api/auth/logout'){
       if(!sameOrigin()) return send(403,{error:'Same-origin JSON request required.'});
-      auth.deleteSession(cookies.mb_session);
+      await auth.deleteSession(cookies.mb_session);
       clearSessionCookie();
       return send(200,{ok:true});
     }
 
     if(pathname==='/api/library'||pathname==='/api/library/capture'){
       const library=getLibrary();
-      const user=auth.getSessionUser(cookies.mb_session);
+      const user=await auth.getSessionUser(cookies.mb_session);
       if(!user)return send(401,{error:'Open MB Smart Link and sign in first.'});
-      if(req.method==='GET'&&pathname==='/api/library')return send(200,{library:library.get(user.id)});
+      if(req.method==='GET'&&pathname==='/api/library')return send(200,{library:await library.get(user.id)});
       if(!sameOrigin())return send(403,{error:'Same-origin JSON request required.'});
       try{
         const body=await readJson();
         if(req.method==='PUT'&&pathname==='/api/library'){
-          const result=library.put(user.id,body.revision,body);
-          return result?send(200,{library:result}):send(409,{error:'Library changed on another device.',library:library.get(user.id)});
+          const result=await library.put(user.id,body.revision,body);
+          return result?send(200,{library:result}):send(409,{error:'Library changed on another device.',library:await library.get(user.id)});
         }
         if(req.method==='POST'&&pathname==='/api/library/capture'){
           if(!/^[a-zA-Z0-9-]{16,80}$/.test(body.requestId||''))return send(400,{error:'Invalid save request.'});
           const url=require('./shared-link.cjs').normalize(body.url);
           // Save before optional metadata lookup; capture never waits on a third-party site.
-          const result=library.capture(user.id,body.requestId,url);
+          const result=await library.capture(user.id,body.requestId,url);
           void videoTitle(url).then(title=>library.enrich(user.id,result.itemId,title)).catch(()=>{});
           return send(200,result);
         }
@@ -150,7 +171,7 @@ function createServer({ apiKey = process.env.OPENAI_API_KEY, model = process.env
     if (req.method === 'POST' && pathname === '/api/session') {
       if (!sameOrigin())
         return send(403, { error: 'Same-origin JSON request required.' });
-      if(!isLocal&&!auth.getSessionUser(cookies.mb_session))return send(401,{error:'Sign in first.'});
+      if(!isLocal&&!await auth.getSessionUser(cookies.mb_session))return send(401,{error:'Sign in first.'});
       if (!apiKey) return send(503, { error: 'Set OPENAI_API_KEY in the local .env file and restart START AI LISTENER.bat.' });
       if (pending >= 2) return send(429, { error: 'A connection is already being prepared. Try again shortly.' });
       let body;
@@ -196,34 +217,45 @@ function createServer({ apiKey = process.env.OPENAI_API_KEY, model = process.env
   });
 }
 if (require.main === module) {
-  // Explicit project settings take precedence over inherited terminal settings.
-  // This avoids silently using an old API key after the user updates .env.
-  try {
-    const env = require('node:util').parseEnv(require('node:fs').readFileSync(path.join(__dirname, '.env'), 'utf8'));
-    for (const name of ['OPENAI_API_KEY', 'OPENAI_REALTIME_MODEL', 'PORT', 'AUDIO_HELPER_PORT', 'DEV_SAMPLE_LOGIN', 'PUBLIC_ORIGIN']) {
-      if (env[name]?.trim()) process.env[name] = env[name];
-    }
-  } catch (error) {
-    if (error.code !== 'ENOENT') { console.error('Unable to read .env. Check its format and file permissions.'); process.exit(1); }
-  }
-  const port = Number(process.env.PORT || 5500);
-  createServer().listen(port, '127.0.0.1', () => {
-    const url = `http://127.0.0.1:${port}`;
-    console.log(`Knowledge Hub AI: ${url}`);
-    startHelper(port).catch(() => console.log('Helper unavailable. Chrome fallback is available.'));
-    if (process.argv.includes('--open')) {
-      const locations = [process.env.PROGRAMFILES, process.env['PROGRAMFILES(X86)'], process.env.LOCALAPPDATA]
-        .filter(Boolean).map(root => path.join(root, 'Google', 'Chrome', 'Application', 'chrome.exe'));
-      const chrome = locations.find(file => require('node:fs').existsSync(file)) || 'chrome.exe';
-      // Start only after the server is listening; no shell or fixed startup delay.
-      const child = require('node:child_process').spawn(chrome, ['--new-window', url], {
-        detached: true, stdio: 'ignore', windowsHide: true
+  (async()=>{
+    try{
+      if(usePostgres){
+        await require('./server/postgres.cjs').initPostgres();
+        console.log('Postgres database ready.');
+      }
+
+      const port=Number(process.env.PORT||5500);
+      const hosted=!!process.env.PUBLIC_ORIGIN;
+      const host=hosted?'0.0.0.0':'127.0.0.1';
+
+      createServer().listen(port,host,()=>{
+        const url=hosted?process.env.PUBLIC_ORIGIN:`http://127.0.0.1:${port}`;
+        console.log(`Knowledge Hub AI: ${url}`);
+
+        if(!hosted){
+          startHelper(port).catch(()=>console.log('Helper unavailable. Chrome fallback is available.'));
+
+          if(process.argv.includes('--open')){
+            const locations=[process.env.PROGRAMFILES,process.env['PROGRAMFILES(X86)'],process.env.LOCALAPPDATA]
+              .filter(Boolean).map(root=>path.join(root,'Google','Chrome','Application','chrome.exe'));
+            const chrome=locations.find(file=>require('node:fs').existsSync(file))||'chrome.exe';
+            const child=require('node:child_process').spawn(chrome,['--new-window',url],{
+              detached:true,stdio:'ignore',windowsHide:true
+            });
+            child.on('error',()=>console.error(`Chrome could not open automatically. Open ${url} in Chrome.`));
+            child.unref();
+          }
+        }
+      })
+      .on('error',error=>{
+        console.error('Could not start server:',error.message);
+        process.exitCode=1;
       });
-      child.on('error', () => console.error(`Chrome could not open automatically. Open ${url} in Chrome.`));
-      child.unref();
+    }catch(error){
+      console.error('Startup failed:',error.message);
+      process.exitCode=1;
     }
-  })
-    .on('error', () => { console.error('Could not start local server. Check whether the port is already in use.'); process.exitCode = 1; });
+  })();
 }
 module.exports = { createServer };
 
