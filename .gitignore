@@ -7,3 +7,6 @@ node_modules/
 windows-helper/.venv/
 __pycache__/
 
+
+data/*.db
+data/*.db-*

@@ -5,9 +5,13 @@ const { sessionConfig } = require('./server/session.cjs');
 const { helperStatus, startHelper } = require('./server/helper.cjs');
 const { videoTitle } = require('./server/video-title.cjs');
 const auth = require('./server/auth.cjs');
+let library;
+function getLibrary(){return library ||= require('./server/library.cjs').repository()}
 
 // Explicit allowlist: never serve .env, backend code, tests, or repository files.
 const assets = new Map([
+  ['/library-sync.js',['library-sync.js','text/javascript']],
+  ['/shared-link.js', ['shared-link.cjs','text/javascript']],
   ['/category-lock.js', ['category-lock.js', 'text/javascript']],
   ['/', ['index.html', 'text/html']], ['/index.html', ['index.html', 'text/html']],
   ['/app.js', ['app.js', 'text/javascript']], ['/style.css', ['style.css', 'text/css']],
@@ -17,6 +21,8 @@ const assets = new Map([
 ]);
 function createServer({ apiKey = process.env.OPENAI_API_KEY, model = process.env.OPENAI_REALTIME_MODEL || 'gpt-realtime', fetchImpl = fetch } = {}) {
   let pending = 0;
+  const publicOrigin=process.env.PUBLIC_ORIGIN ? new URL(process.env.PUBLIC_ORIGIN) : null;
+  if(publicOrigin&&(publicOrigin.protocol!=='https:'||publicOrigin.pathname!=='/'||publicOrigin.search||publicOrigin.hash||publicOrigin.username))throw Error('PUBLIC_ORIGIN must be an HTTPS origin.');
   return http.createServer(async (req, res) => {
     const send = (code, data, type = 'application/json') => {
       if (res.destroyed) return;
@@ -27,7 +33,9 @@ function createServer({ apiKey = process.env.OPENAI_API_KEY, model = process.env
     };
     const expectedHost = `127.0.0.1:${req.socket.localPort}`;
     const localHost = `localhost:${req.socket.localPort}`;
-    if (![expectedHost, localHost].includes(req.headers.host)) return send(403, { error: 'Local access only.' });
+    const isLocal=[expectedHost,localHost].includes(req.headers.host);
+    const requestOrigin=!isLocal&&publicOrigin?.host===req.headers.host?publicOrigin.origin:`http://${req.headers.host}`;
+    if (!isLocal && publicOrigin?.host!==req.headers.host) return send(403, { error: 'Local access only.' });
     const pathname = new URL(req.url, `http://${expectedHost}`).pathname;
 
     const cookies=Object.fromEntries(
@@ -41,18 +49,18 @@ function createServer({ apiKey = process.env.OPENAI_API_KEY, model = process.env
       const chunks=[];let bytes=0;
       for await(const chunk of req){
         bytes+=chunk.length;
-        if(bytes>20000) throw Error('too-large');
+        if(bytes>4200000) throw Error('too-large');
         chunks.push(chunk);
       }
       return JSON.parse(Buffer.concat(chunks).toString()||'{}');
     };
 
-    const sameOrigin=()=>req.headers.origin===`http://${req.headers.host}` &&
+    const sameOrigin=()=>req.headers.origin===requestOrigin &&
       String(req.headers['content-type']||'').startsWith('application/json');
 
     const setSessionCookie=value=>res.setHeader(
       'Set-Cookie',
-      `mb_session=${encodeURIComponent(value)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=2592000`
+      `mb_session=${encodeURIComponent(value)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=2592000${!isLocal?'; Secure':''}`
     );
 
     const clearSessionCookie=()=>res.setHeader(
@@ -72,9 +80,9 @@ function createServer({ apiKey = process.env.OPENAI_API_KEY, model = process.env
         const email=String(body.email||'').trim().toLowerCase();
         if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||email.length>254)
           return send(400,{error:'Enter a valid email address.'});
-        const code=auth.createLoginCode(email);
+        const code=auth.createLoginCode(email,10*60*1000,isLocal);
         console.log('[DEV LOGIN CODE] '+email+': '+code);
-        return send(200,{ok:true,message:'Verification code created.',demoMode:process.env.DEV_SAMPLE_LOGIN==='true'&&process.env.NODE_ENV!=='production'});
+        return send(200,{ok:true,message:'Verification code created.',demoMode:isLocal&&process.env.DEV_SAMPLE_LOGIN==='true'&&process.env.NODE_ENV!=='production'});
       }catch{
         return send(400,{error:'Could not create verification code.'});
       }
@@ -108,16 +116,41 @@ function createServer({ apiKey = process.env.OPENAI_API_KEY, model = process.env
       return send(200,{ok:true});
     }
 
+    if(pathname==='/api/library'||pathname==='/api/library/capture'){
+      const library=getLibrary();
+      const user=auth.getSessionUser(cookies.mb_session);
+      if(!user)return send(401,{error:'Open MB Smart Link and sign in first.'});
+      if(req.method==='GET'&&pathname==='/api/library')return send(200,{library:library.get(user.id)});
+      if(!sameOrigin())return send(403,{error:'Same-origin JSON request required.'});
+      try{
+        const body=await readJson();
+        if(req.method==='PUT'&&pathname==='/api/library'){
+          const result=library.put(user.id,body.revision,body);
+          return result?send(200,{library:result}):send(409,{error:'Library changed on another device.',library:library.get(user.id)});
+        }
+        if(req.method==='POST'&&pathname==='/api/library/capture'){
+          if(!/^[a-zA-Z0-9-]{16,80}$/.test(body.requestId||''))return send(400,{error:'Invalid save request.'});
+          const url=require('./shared-link.cjs').normalize(body.url);
+          // Save before optional metadata lookup; capture never waits on a third-party site.
+          const result=library.capture(user.id,body.requestId,url);
+          void videoTitle(url).then(title=>library.enrich(user.id,result.itemId,title)).catch(()=>{});
+          return send(200,result);
+        }
+        return send(405,{error:'Method not allowed.'});
+      }catch(e){return send(400,{error:e.message||'Could not save link.'})}
+    }
+
     if (req.method === 'GET' && pathname === '/api/health') return send(200, { configured: !!apiKey, model });
-    if (req.method === 'GET' && pathname === '/api/helper/status') return send(200, await helperStatus());
+    if (req.method === 'GET' && pathname === '/api/helper/status') return isLocal?send(200, await helperStatus()):send(403,{error:'PC helper is local only.'});
     if (req.method === 'GET' && pathname === '/api/video-title') {
       const url = new URL(req.url, `http://${expectedHost}`).searchParams.get('url');
       if (!url || url.length > 4096) return send(400, { error: 'Invalid video URL.' });
       return send(200, { title: await videoTitle(url) });
     }
     if (req.method === 'POST' && pathname === '/api/session') {
-      if (req.headers.origin !== `http://${req.headers.host}` || req.headers['content-type'] !== 'application/json')
+      if (!sameOrigin())
         return send(403, { error: 'Same-origin JSON request required.' });
+      if(!isLocal&&!auth.getSessionUser(cookies.mb_session))return send(401,{error:'Sign in first.'});
       if (!apiKey) return send(503, { error: 'Set OPENAI_API_KEY in the local .env file and restart START AI LISTENER.bat.' });
       if (pending >= 2) return send(429, { error: 'A connection is already being prepared. Try again shortly.' });
       let body;
@@ -167,7 +200,7 @@ if (require.main === module) {
   // This avoids silently using an old API key after the user updates .env.
   try {
     const env = require('node:util').parseEnv(require('node:fs').readFileSync(path.join(__dirname, '.env'), 'utf8'));
-    for (const name of ['OPENAI_API_KEY', 'OPENAI_REALTIME_MODEL', 'PORT', 'AUDIO_HELPER_PORT', 'DEV_SAMPLE_LOGIN']) {
+    for (const name of ['OPENAI_API_KEY', 'OPENAI_REALTIME_MODEL', 'PORT', 'AUDIO_HELPER_PORT', 'DEV_SAMPLE_LOGIN', 'PUBLIC_ORIGIN']) {
       if (env[name]?.trim()) process.env[name] = env[name];
     }
   } catch (error) {

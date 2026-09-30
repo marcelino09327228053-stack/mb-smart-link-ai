@@ -1,5 +1,5 @@
 const selectedItems=new Set();let selectionHub=null;
-const OLD_KEY="panel_beater_study_parts_v1",KEY="mb_future_knowledge_hubs_v1";const $=id=>document.getElementById(id);function uid(){return crypto.randomUUID()}function oldItems(){try{return JSON.parse(localStorage.getItem(OLD_KEY)||"[]")}catch{return[]}}function defaults(){return[{id:uid(),name:"New Category",items:[]}]}function load(){try{const x=JSON.parse(localStorage.getItem(KEY)||"null");return Array.isArray(x)?x:defaults()}catch{return defaults()}}let hubs=load(),hubId=hubs[0]?.id||null,itemId=hubs[0]?.items?.[0]?.id||null;function save(){localStorage.setItem(KEY,JSON.stringify(hubs))}function esc(v){return String(v).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;")}function norm(v){v=(v||"").trim();return !v?"":/^https?:\/\//i.test(v)?v:"https://"+v}function yid(v){try{const u=new URL(norm(v));if(u.hostname.includes("youtu.be"))return u.pathname.split("/")[1]||"";if(u.hostname.includes("youtube.com")){if(u.pathname==="/watch")return u.searchParams.get("v")||"";return u.pathname.match(/\/(?:shorts|embed|live)\/([^/?]+)/)?.[1]||""}}catch{}return""}function linkType(v){const s=(v||"").trim().toLowerCase();if(!s)return"empty";if(yid(s)||/(youtube\.com|youtu\.be|facebook\.com|fb\.watch|tiktok\.com|instagram\.com).*?(watch|video|videos|reel|reels|shorts|\/v\/|youtu)/i.test(s)||/\.(mp4|webm|mov|m4v)(\?|#|$)/i.test(s))return"video";if(/\.(jpg|jpeg|png|gif|webp|bmp|svg|avif)(\?|#|$)/i.test(s)||/(images?|photos?|picture|img)[\/.?=_-]/i.test(s))return"image";return"website"}function hub(){return hubs.find(h=>h.id===hubId)}function item(){return hub()?.items.find(i=>i.id===itemId)}function migrate(i){if(!i.links)i.links=i.image?[{id:uid(),title:i.image,url:i.image}]:[];if(!i.videos)i.videos=i.youtube?[{id:uid(),title:i.youtube,url:i.youtube}]:[];if(i.videos.length>1)i.videos=i.videos.slice(-1);if(i.name==="Saved Link"){const url=i.links.at(-1)?.url||i.videos.at(-1)?.url;if(url)i.name=siteName(url)}return i}function warn(m){alert("Warning: "+m)}async function videoTitle(url){try{const r=await fetch('/api/video-title?url='+encodeURIComponent(url));if(r.ok){const data=await r.json();return data.title||'Untitled Video'}}catch{}return 'Untitled Video'}const hubList=$("hubList"),hubSearch=$("hubSearch"),hubEmpty=$("hubEmpty"),hubWorkspace=$("hubWorkspace"),hubTitle=$("hubTitle"),itemList=$("itemList"),itemSearch=$("itemSearch"),libraryCount=$("libraryCount"),itemEmpty=$("itemEmpty"),detailCard=$("detailCard"),detailName=$("detailName"),mainPartName=$("mainPartName"),notesArea=$("notesArea"),videoPreview=$("videoPreview"),videoThumb=$("videoThumb"),noPreview=$("noPreview"),imageLinksList=$("imageLinksList"),videoLinksList=$("videoLinksList");function openHub(h){
+const OLD_KEY="panel_beater_study_parts_v1",KEY="mb_future_knowledge_hubs_v1";const $=id=>document.getElementById(id);function uid(){return crypto.randomUUID()}function oldItems(){try{return JSON.parse(localStorage.getItem(OLD_KEY)||"[]")}catch{return[]}}function defaults(){return[{id:uid(),name:"New Category",items:[]}]}function load(){try{const x=JSON.parse(localStorage.getItem(KEY)||"null");return Array.isArray(x)?x:defaults()}catch{return defaults()}}let hubs=load(),hubId=hubs[0]?.id||null,itemId=hubs[0]?.items?.[0]?.id||null;function save(){localStorage.setItem(window.MBSync?.storageKey()||KEY,JSON.stringify(hubs));window.MBSync?.changed()}function esc(v){return String(v).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;")}function norm(v){v=(v||"").trim();return !v?"":/^https?:\/\//i.test(v)?v:"https://"+v}function yid(v){try{const u=new URL(norm(v));if(u.hostname.includes("youtu.be"))return u.pathname.split("/")[1]||"";if(u.hostname.includes("youtube.com")){if(u.pathname==="/watch")return u.searchParams.get("v")||"";return u.pathname.match(/\/(?:shorts|embed|live)\/([^/?]+)/)?.[1]||""}}catch{}return""}function linkType(v){const s=(v||"").trim().toLowerCase();if(!s)return"empty";if(yid(s)||/(youtube\.com|youtu\.be|facebook\.com|fb\.watch|tiktok\.com|instagram\.com).*?(watch|video|videos|reel|reels|shorts|\/v\/|youtu)/i.test(s)||/\.(mp4|webm|mov|m4v)(\?|#|$)/i.test(s))return"video";if(/\.(jpg|jpeg|png|gif|webp|bmp|svg|avif)(\?|#|$)/i.test(s)||/(images?|photos?|picture|img)[\/.?=_-]/i.test(s))return"image";return"website"}function hub(){return hubs.find(h=>h.id===hubId)}function item(){return hub()?.items.find(i=>i.id===itemId)}function migrate(i){if(!i.links)i.links=i.image?[{id:uid(),title:i.image,url:i.image}]:[];if(!i.videos)i.videos=i.youtube?[{id:uid(),title:i.youtube,url:i.youtube}]:[];if(i.videos.length>1)i.videos=i.videos.slice(-1);if(i.name==="Saved Link"){const url=i.links.at(-1)?.url||i.videos.at(-1)?.url;if(url)i.name=siteName(url)}return i}function warn(m){alert("Warning: "+m)}async function videoTitle(url){try{const r=await fetch('/api/video-title?url='+encodeURIComponent(url));if(r.ok){const data=await r.json();return data.title||'Untitled Video'}}catch{}return 'Untitled Video'}const hubList=$("hubList"),hubSearch=$("hubSearch"),hubEmpty=$("hubEmpty"),hubWorkspace=$("hubWorkspace"),hubTitle=$("hubTitle"),itemList=$("itemList"),itemSearch=$("itemSearch"),libraryCount=$("libraryCount"),itemEmpty=$("itemEmpty"),detailCard=$("detailCard"),detailName=$("detailName"),mainPartName=$("mainPartName"),notesArea=$("notesArea"),videoPreview=$("videoPreview"),videoThumb=$("videoThumb"),noPreview=$("noPreview"),imageLinksList=$("imageLinksList"),videoLinksList=$("videoLinksList");function openHub(h){
   if(h.locked){toggleHubLock(h);return}
   hubId=h.id;itemId=h.items[0]?.id||null;showLibraryDetails(false);renderAll();
 }
@@ -72,9 +72,9 @@ async function savePastedLink(field,createNew){
   const h=hub();if(!h)return;
   let i=createNew?null:item();
   if(!i){i={id:uid(),name:'Saved Link',links:[],videos:[],notes:''};h.items.push(i)}
-  const kind=linkType(url.href),isVideo=kind==='video',isYouTube=!!yid(url.href),fallback=siteName(url.href);
-  const savedAt=new Date().toISOString();
-  const entry={id:uid(),url:url.href,title:fallback,savedAt};i.savedAt=savedAt;
+  const made=MBLink.make(url.href,i.id,uid(),new Date().toISOString());
+  const isVideo=made.videos.length>0,fallback=made.name;
+  const entry=made.videos[0]||made.links[0];i.savedAt=made.savedAt;
   if(isVideo)i.videos=[entry];else i.links=[entry];
   i.name=fallback;
   if(!createNew)i.notes=notesArea.value;
@@ -268,16 +268,16 @@ let currentUser=null;
 let pendingAuthAction=null;
 function hideAuth(){const gate=$('authGate');if(gate)gate.hidden=true;document.body.classList.remove('auth-pending','auth-open');const status=$('authStatus');if(status)status.textContent=''}
 function showAuth(message='Verify your email to continue.',afterLogin=null){pendingAuthAction=afterLogin;document.body.classList.remove('auth-pending');document.body.classList.add('auth-open');const gate=$('authGate');if(gate){gate.hidden=false;gate.style.display=''}const msg=$('authMessage');if(msg)msg.textContent=message;const status=$('authStatus');if(status)status.textContent='';const step=$('authCodeStep');if(step)step.hidden=true;const code=$('authCode');if(code)code.value='';setTimeout(()=>$('authEmail')?.focus({preventScroll:true}),0)}
-function showAuthenticated(user){currentUser=user||null;document.body.classList.remove('auth-pending');const email=$('accountEmail');if(email)email.textContent=user?.email||'';const out=$('logoutBtn');if(out)out.hidden=!user;hideAuth()}
-async function initAuthGate(){try{const {r,data}=await authRequest('/api/auth/me',{method:'GET'});if(r.ok&&data.user){showAuthenticated(data.user);return}}catch{}currentUser=null;document.body.classList.remove('auth-pending');const gate=$('authGate');if(gate)gate.hidden=true;const out=$('logoutBtn');if(out)out.hidden=true}
+async function showAuthenticated(user){await window.MBSync?.login(user);currentUser=user||null;document.body.classList.remove('auth-pending');const email=$('accountEmail');if(email)email.textContent=user?.email||'';const out=$('logoutBtn');if(out)out.hidden=!user;hideAuth()}
+async function initAuthGate(){try{const {r,data}=await authRequest('/api/auth/me',{method:'GET'});if(r.ok&&data.user){await showAuthenticated(data.user);return}}catch{}currentUser=null;document.body.classList.remove('auth-pending');const gate=$('authGate');if(gate)gate.hidden=true;const out=$('logoutBtn');if(out)out.hidden=true}
 async function requestAuthCode(){const email=$('authEmail').value.trim();const status=$('authStatus');status.textContent='Sending code...';try{const {r,data}=await authRequest('/api/auth/request-code',{method:'POST',body:JSON.stringify({email})});if(!r.ok){status.textContent=data.error||'Could not send code.';return}status.textContent=data.demoMode?'LOCAL DEMO: Use code 123456. No email was sent.':'Code created. Get the code from the local server window.';const step=$('authCodeStep');if(step)step.hidden=false;setTimeout(()=>$('authCode')?.focus(),0)}catch{status.textContent='Unable to connect to the local server.'}}
-async function verifyAuthCode(){const email=$('authEmail').value.trim(),code=$('authCode').value.trim(),status=$('authStatus');status.textContent='Verifying...';try{const {r,data}=await authRequest('/api/auth/verify-code',{method:'POST',body:JSON.stringify({email,code})});if(!r.ok){status.textContent=data.error||'Verification failed.';return}showAuthenticated(data.user);const action=pendingAuthAction;pendingAuthAction=null;if(typeof action==='function')action(data.user)}catch{status.textContent='Unable to connect to the local server.'}}
-$('sendCodeBtn').onclick=requestAuthCode;$('verifyCodeBtn').onclick=verifyAuthCode;$('authCancelBtn').onclick=()=>{pendingAuthAction=null;hideAuth()};$('authEmail').addEventListener('keydown',e=>{if(e.key==='Enter')requestAuthCode()});$('authCode').addEventListener('keydown',e=>{if(e.key==='Enter')verifyAuthCode()});$('authCode').addEventListener('input',e=>{e.target.value=e.target.value.replace(/\D/g,'').slice(0,6)});$('logoutBtn').onclick=async()=>{try{await authRequest('/api/auth/logout',{method:'POST',body:'{}'})}catch{}currentUser=null;const email=$('accountEmail');if(email)email.textContent='';const out=$('logoutBtn');if(out)out.hidden=true;hideAuth()};initAuthGate();
+async function verifyAuthCode(){const email=$('authEmail').value.trim(),code=$('authCode').value.trim(),status=$('authStatus');status.textContent='Verifying...';try{const {r,data}=await authRequest('/api/auth/verify-code',{method:'POST',body:JSON.stringify({email,code})});if(!r.ok){status.textContent=data.error||'Verification failed.';return}await showAuthenticated(data.user);const action=pendingAuthAction;pendingAuthAction=null;if(typeof action==='function')action(data.user)}catch{status.textContent='Unable to connect to the local server.'}}
+$('sendCodeBtn').onclick=requestAuthCode;$('verifyCodeBtn').onclick=verifyAuthCode;$('authCancelBtn').onclick=()=>{pendingAuthAction=null;hideAuth()};$('authEmail').addEventListener('keydown',e=>{if(e.key==='Enter')requestAuthCode()});$('authCode').addEventListener('keydown',e=>{if(e.key==='Enter')verifyAuthCode()});$('authCode').addEventListener('input',e=>{e.target.value=e.target.value.replace(/\D/g,'').slice(0,6)});$('logoutBtn').onclick=async()=>{try{await authRequest('/api/auth/logout',{method:'POST',body:'{}'})}catch{}window.MBSync?.logout();currentUser=null;const email=$('accountEmail');if(email)email.textContent='';const out=$('logoutBtn');if(out)out.hidden=true;hideAuth()};initAuthGate();
 function requireAuth(message,action){if(currentUser){if(typeof action==='function')action(currentUser);return true}showAuth(message,action);return false}
 
 
 
-const CATEGORY_PASSWORD_KEY='mb_category_master_password_hash_v1';
+let CATEGORY_PASSWORD_KEY='mb_category_master_password_hash_v1';
 let pendingCategoryToLock=null;
 
 async function hashCategoryPassword(value){
@@ -317,6 +317,7 @@ $('categorySettingsBtn').onclick=()=>{
 };
 $('cancelCategoryPasswordBtn').onclick=()=>{
   pendingCategoryToLock=null;
+  save();
   closeCategoryPasswordModal();
 };
 
@@ -360,12 +361,14 @@ $('saveCategoryPasswordBtn').onclick=async()=>{
 
   if(pendingCategoryToLock){
     pendingCategoryToLock.locked=true;
+    window.MBSync?.activate(pendingCategoryToLock.id);
     pendingCategoryToLock.lockOwnerId=currentUser?.id||null;
     pendingCategoryToLock=null;
     save();
     renderAll();
   }
 
+  save();
   closeCategoryPasswordModal();
 };
 
@@ -398,6 +401,7 @@ window.categoryLock=async h=>{
       return;
     }
     h.locked=true;
+    window.MBSync?.activate(h.id);
     h.lockOwnerId=currentUser.id;
   }
 

@@ -2,7 +2,7 @@ const { DatabaseSync } = require('node:sqlite');
 const crypto = require('node:crypto');
 const path = require('node:path');
 
-const db = new DatabaseSync(path.join(__dirname,'..','data','mb-smart-link.db'));
+const db = new DatabaseSync(process.env.MB_AUTH_DB||path.join(__dirname,'..','data','mb-smart-link.db'));
 db.exec(`
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -63,8 +63,8 @@ function generateLoginCode(){
   return String(crypto.randomInt(0,1000000)).padStart(6,'0');
 }
 
-function createLoginCode(email,maxAgeMs=10*60*1000){
-  const code=process.env.DEV_SAMPLE_LOGIN==='true' && process.env.NODE_ENV!=='production' ? '123456' : generateLoginCode();
+function createLoginCode(email,maxAgeMs=10*60*1000,allowDemo=true){
+  const code=allowDemo && process.env.DEV_SAMPLE_LOGIN==='true' && process.env.NODE_ENV!=='production' ? '123456' : generateLoginCode();
   db.prepare(`
     INSERT INTO login_codes(email,code_hash,expires_at,attempts)
     VALUES(?,?,?,0)
