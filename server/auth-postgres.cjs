@@ -63,43 +63,38 @@ async function createLoginCode(email,maxAgeMs=10*60*1000,allowDemo=true){
  const code=allowDemo&&process.env.DEV_SAMPLE_LOGIN==='true'&&process.env.NODE_ENV!=='production'
   ?'123456':generateLoginCode();
 
- await getPool().query(`
+ const result=await getPool().query(`
   INSERT INTO login_codes(email,code_hash,expires_at,attempts)
   VALUES($1,$2,$3,0)
   ON CONFLICT(email) DO UPDATE SET
    code_hash=EXCLUDED.code_hash,
    expires_at=EXCLUDED.expires_at,
    attempts=0
- `,[email,tokenHash(code),Date.now()+maxAgeMs]);
+  WHERE login_codes.expires_at<=$4
+ RETURNING email
+ `,[email,tokenHash(code),Date.now()+maxAgeMs,Date.now()+maxAgeMs-60000]);
+ if(!result.rowCount)throw Object.assign(Error('OTP cooldown'),{code:'OTP_COOLDOWN'});
 
  return code;
 }
 
+async function discardLoginCode(email,code){
+ await getPool().query('DELETE FROM login_codes WHERE email=$1 AND code_hash=$2',[normalizeEmail(email),tokenHash(code)]);
+}
 async function verifyLoginCode(email,code){
- email=normalizeEmail(email);
- const result=await getPool().query(
-  'SELECT code_hash,expires_at,attempts FROM login_codes WHERE email=$1',
-  [email]
- );
- const row=result.rows[0];
-
- if(!row||Number(row.expires_at)<=Date.now()||row.attempts>=5){
-  await getPool().query('DELETE FROM login_codes WHERE email=$1',[email]);
-  return false;
- }
-
- const ok=row.code_hash===tokenHash(code);
-
- if(ok){
-  await getPool().query('DELETE FROM login_codes WHERE email=$1',[email]);
-  return true;
- }
-
- await getPool().query(
-  'UPDATE login_codes SET attempts=attempts+1 WHERE email=$1',
-  [email]
- );
- return false;
+ const client=await getPool().connect();
+ try{
+  await client.query('BEGIN');
+  const result=await client.query('SELECT code_hash,expires_at,attempts FROM login_codes WHERE email=$1 FOR UPDATE',[normalizeEmail(email)]);
+  const row=result.rows[0];let ok=false;
+  if(row&&Number(row.expires_at)>Date.now()&&row.attempts<5){
+   ok=row.code_hash===tokenHash(code);
+   if(ok)await client.query('DELETE FROM login_codes WHERE email=$1',[normalizeEmail(email)]);
+   else await client.query('UPDATE login_codes SET attempts=attempts+1 WHERE email=$1',[normalizeEmail(email)]);
+  }
+  await client.query('COMMIT');return ok;
+ }catch(e){await client.query('ROLLBACK').catch(()=>{});throw e}
+ finally{client.release()}
 }
 
 async function cleanupSessions(){
@@ -144,6 +139,7 @@ module.exports={
  deleteSession,
  getSessionUser,
  createLoginCode,
+ discardLoginCode,
  verifyLoginCode,
  ensureOtpUser
 };

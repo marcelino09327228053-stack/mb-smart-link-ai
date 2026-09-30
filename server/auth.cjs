@@ -65,16 +65,20 @@ function generateLoginCode(){
 
 function createLoginCode(email,maxAgeMs=10*60*1000,allowDemo=true){
   const code=allowDemo && process.env.DEV_SAMPLE_LOGIN==='true' && process.env.NODE_ENV!=='production' ? '123456' : generateLoginCode();
-  db.prepare(`
+  const result=db.prepare(`
     INSERT INTO login_codes(email,code_hash,expires_at,attempts)
     VALUES(?,?,?,0)
     ON CONFLICT(email) DO UPDATE SET
       code_hash=excluded.code_hash,
       expires_at=excluded.expires_at,
       attempts=0
-  `).run(email,tokenHash(code),Date.now()+maxAgeMs);
+    WHERE login_codes.expires_at<=?
+  `).run(email,tokenHash(code),Date.now()+maxAgeMs,Date.now()+maxAgeMs-60000);
+  if(!result.changes)throw Object.assign(Error('OTP cooldown'),{code:'OTP_COOLDOWN'});
   return code;
 }
+
+function discardLoginCode(email,code){db.prepare('DELETE FROM login_codes WHERE email=? AND code_hash=?').run(email,tokenHash(code))}
 
 function verifyLoginCode(email,code){
   const row=db.prepare(
@@ -82,7 +86,6 @@ function verifyLoginCode(email,code){
   ).get(email);
 
   if(!row||row.expires_at<=Date.now()||row.attempts>=5){
-    db.prepare('DELETE FROM login_codes WHERE email=?').run(email);
     return false;
   }
 
@@ -163,6 +166,7 @@ module.exports={
   deleteSession,
   getSessionUser,
   createLoginCode,
+  discardLoginCode,
   verifyLoginCode,
   ensureOtpUser
 };

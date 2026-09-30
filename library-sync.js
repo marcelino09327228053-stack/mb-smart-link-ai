@@ -3,7 +3,7 @@ window.MBSync=(()=>{
  let base=null,active=null,userId=null,running=false,pending=false,epoch=0;
  const clone=x=>JSON.parse(JSON.stringify(x));
  const guestPassword='mb_category_master_password_hash_v1';
- const status=text=>{let n=document.getElementById('librarySyncStatus');if(!n){n=document.createElement('p');n.id='librarySyncStatus';n.setAttribute('role','status');n.style.cssText='color:#bcd7f5;margin:6px 0;font-size:14px';document.querySelector('.sidebar').prepend(n)}n.textContent=text};
+ const status=text=>{let n=document.getElementById('librarySyncStatus');if(!n){n=document.createElement('p');n.id='librarySyncStatus';n.setAttribute('role','status');n.style.cssText='color:#bcd7f5;margin:.375rem 0;font-size:.875rem';document.querySelector('.sidebar').prepend(n)}n.textContent=text};
  const storageKey=()=>userId?'mb_account_library_'+userId:KEY;
  const doc=()=>({hubs:clone(hubs),activeLockedCategoryId:active,passwordHash:localStorage.getItem(CATEGORY_PASSWORD_KEY)||null});
  const clean=d=>({hubs:d.hubs,activeLockedCategoryId:d.activeLockedCategoryId||null,passwordHash:d.passwordHash||null});

@@ -10,3 +10,6 @@ __pycache__/
 
 data/*.db
 data/*.db-*
+
+# Local UI verification screenshots
+artifacts/

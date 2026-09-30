@@ -4,12 +4,12 @@ const path = require('node:path');
 const { sessionConfig } = require('./server/session.cjs');
 const { helperStatus, startHelper } = require('./server/helper.cjs');
 const { videoTitle } = require('./server/video-title.cjs');
-try{
+if(require.main===module)try{
   const env=require('node:util').parseEnv(
     require('node:fs').readFileSync(path.join(__dirname,'.env'),'utf8')
   );
-  for(const name of ['OPENAI_API_KEY','OPENAI_REALTIME_MODEL','PORT','AUDIO_HELPER_PORT','DEV_SAMPLE_LOGIN','PUBLIC_ORIGIN','DATABASE_URL','NODE_ENV','PGHOST','PGPORT','PGDATABASE','PGUSER','PGPASSWORD']){
-    if(env[name]?.trim())process.env[name]=env[name];
+  for(const name of ['OPENAI_API_KEY','OPENAI_REALTIME_MODEL','PORT','AUDIO_HELPER_PORT','DEV_SAMPLE_LOGIN','PUBLIC_ORIGIN','DATABASE_URL','NODE_ENV','PGHOST','PGPORT','PGDATABASE','PGUSER','PGPASSWORD','EMAIL_PROVIDER','RESEND_API_KEY','RESEND_FROM_EMAIL']){
+    if(env[name]?.trim()&&process.env[name]===undefined)process.env[name]=env[name];
   }
 }catch(error){
   if(error.code!=='ENOENT')throw error;
@@ -40,11 +40,13 @@ const assets = new Map([
   ['/pc-audio-sources.js', ['pc-audio-sources.js', 'text/javascript']],
   ['/helper-audio-worklet.js', ['helper-audio-worklet.js', 'text/javascript']]
 ]);
-function createServer({ apiKey = process.env.OPENAI_API_KEY, model = process.env.OPENAI_REALTIME_MODEL || 'gpt-realtime', fetchImpl = fetch } = {}) {
+function createServer({ apiKey = process.env.OPENAI_API_KEY, model = process.env.OPENAI_REALTIME_MODEL || 'gpt-realtime', fetchImpl = fetch, emailFetch = fetch } = {}) {
   let pending = 0;
+  const mail=require('./server/email.cjs').emailDelivery({fetchImpl:emailFetch});
+  const otpRequests=new Map();
   const publicOrigin=process.env.PUBLIC_ORIGIN ? new URL(process.env.PUBLIC_ORIGIN) : null;
   if(publicOrigin&&(publicOrigin.protocol!=='https:'||publicOrigin.pathname!=='/'||publicOrigin.search||publicOrigin.hash||publicOrigin.username))throw Error('PUBLIC_ORIGIN must be an HTTPS origin.');
-  return http.createServer(async (req, res) => {
+  const handle=async (req, res) => {
     const send = (code, data, type = 'application/json') => {
       if (res.destroyed) return;
       res.writeHead(code, { 'Content-Type': `${type}; charset=utf-8`, 'Cache-Control': 'no-store',
@@ -59,10 +61,11 @@ function createServer({ apiKey = process.env.OPENAI_API_KEY, model = process.env
     if (!isLocal && publicOrigin?.host!==req.headers.host) return send(403, { error: 'Local access only.' });
     const pathname = new URL(req.url, `http://${expectedHost}`).pathname;
 
+    const decodeCookie=value=>{try{return decodeURIComponent(value)}catch{return ''}};
     const cookies=Object.fromEntries(
       String(req.headers.cookie||'').split(';').map(x=>x.trim()).filter(Boolean).map(x=>{
         const i=x.indexOf('=');
-        return i<0?[x,'']:[x.slice(0,i),decodeURIComponent(x.slice(i+1))];
+        return i<0?[x,'']:[x.slice(0,i),decodeCookie(x.slice(i+1))];
       })
     );
 
@@ -86,7 +89,7 @@ function createServer({ apiKey = process.env.OPENAI_API_KEY, model = process.env
 
     const clearSessionCookie=()=>res.setHeader(
       'Set-Cookie',
-      'mb_session=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0'
+      `mb_session=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0${!isLocal?'; Secure':''}`
     );
 
     if(req.method==='GET'&&pathname==='/api/auth/me'){
@@ -101,11 +104,24 @@ function createServer({ apiKey = process.env.OPENAI_API_KEY, model = process.env
         const email=String(body.email||'').trim().toLowerCase();
         if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||email.length>254)
           return send(400,{error:'Enter a valid email address.'});
-        const code=await auth.createLoginCode(email,10*60*1000,isLocal);
-        console.log('[DEV LOGIN CODE] '+email+': '+code);
-        return send(200,{ok:true,message:'Verification code created.',demoMode:isLocal&&process.env.DEV_SAMPLE_LOGIN==='true'&&process.env.NODE_ENV!=='production'});
-      }catch{
-        return send(400,{error:'Could not create verification code.'});
+        mail.check(isLocal);
+        // In-memory burst cap supplements the database-backed per-email cooldown.
+        const now=Date.now(),peer=req.socket.remoteAddress;
+        for(const [key,value] of otpRequests)if(value.until<=now)otpRequests.delete(key);
+        const limit=otpRequests.get(peer)||{count:0,until:now+600000};
+        if(limit.count>=30){res.setHeader('Retry-After','600');return send(429,{error:'Too many code requests. Try again later.'})}
+        limit.count++;otpRequests.set(peer,limit);
+        const code=await auth.createLoginCode(email,10*60*1000,mail.demo(isLocal));
+        try{
+          const delivery=await mail.send(email,code,isLocal);
+          return send(200,{ok:true,...delivery,retryAfter:60});
+        }catch(error){
+          await auth.discardLoginCode(email,code);
+          return send(503,{error:error.message});
+        }
+      }catch(error){
+        if(error.code==='OTP_COOLDOWN'){res.setHeader('Retry-After','60');return send(429,{error:'Wait 60 seconds before requesting another code.'})}
+        return send(503,{error:'Email sign-in is unavailable. Please try again later or contact the site owner.'});
       }
     }
 
@@ -214,7 +230,11 @@ function createServer({ apiKey = process.env.OPENAI_API_KEY, model = process.env
       const [file, type] = assets.get(pathname);
       send(200, await fs.readFile(path.join(__dirname, file), 'utf8'), type);
     } catch { send(500, { error: 'Unable to read website asset.' }); }
-  });
+  };
+  return http.createServer((req,res)=>{handle(req,res).catch(()=>{
+    if(!res.headersSent){res.writeHead(503,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify({error:'Service temporarily unavailable. Please try again.'}))}
+    else res.destroy();
+  })});
 }
 if (require.main === module) {
   (async()=>{

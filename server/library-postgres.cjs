@@ -81,6 +81,11 @@ async function capture(user,requestId,url,title){
   );
   if(!locked.rowCount)throw Error('No active locked category. Open MB Smart Link and lock a category first.');
 
+  // Another request with this ID may have committed while this one waited
+  // for the account library lock. Return that result instead of inserting twice.
+  const replay=await client.query('SELECT result FROM captures WHERE user_id=$1 AND request_id=$2',[user,requestId]);
+  if(replay.rowCount){await client.query('COMMIT');return replay.rows[0].result;}
+
   const row=locked.rows[0];
   const doc={revision:Number(row.revision),...row.document};
   const h=doc.hubs.find(h=>h.id===doc.activeLockedCategoryId&&h.locked);
