@@ -1,7 +1,7 @@
 const selectedItems=new Set();let selectionHub=null;
 const OLD_KEY="panel_beater_study_parts_v1",KEY="mb_future_knowledge_hubs_v1";const $=id=>document.getElementById(id);function uid(){return crypto.randomUUID()}function oldItems(){try{return JSON.parse(localStorage.getItem(OLD_KEY)||"[]")}catch{return[]}}function defaults(){return[{id:uid(),name:"New Category",items:[]}]}function load(){try{const x=JSON.parse(localStorage.getItem(KEY)||"null");return Array.isArray(x)?x:defaults()}catch{return defaults()}}let hubs=load(),hubId=hubs[0]?.id||null,itemId=hubs[0]?.items?.[0]?.id||null;function save(){localStorage.setItem(window.MBSync?.storageKey()||KEY,JSON.stringify(hubs));window.MBSync?.changed()}function esc(v){return String(v).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;")}function norm(v){v=(v||"").trim();return !v?"":/^https?:\/\//i.test(v)?v:"https://"+v}function yid(v){try{const u=new URL(norm(v));if(u.hostname.includes("youtu.be"))return u.pathname.split("/")[1]||"";if(u.hostname.includes("youtube.com")){if(u.pathname==="/watch")return u.searchParams.get("v")||"";return u.pathname.match(/\/(?:shorts|embed|live)\/([^/?]+)/)?.[1]||""}}catch{}return""}function linkType(v){const s=(v||"").trim().toLowerCase();if(!s)return"empty";if(yid(s)||/(youtube\.com|youtu\.be|facebook\.com|fb\.watch|tiktok\.com|instagram\.com).*?(watch|video|videos|reel|reels|shorts|\/v\/|youtu)/i.test(s)||/\.(mp4|webm|mov|m4v)(\?|#|$)/i.test(s))return"video";if(/\.(jpg|jpeg|png|gif|webp|bmp|svg|avif)(\?|#|$)/i.test(s)||/(images?|photos?|picture|img)[\/.?=_-]/i.test(s))return"image";return"website"}function hub(){return hubs.find(h=>h.id===hubId)}function item(){return hub()?.items.find(i=>i.id===itemId)}function migrate(i){if(!i.links)i.links=i.image?[{id:uid(),title:i.image,url:i.image}]:[];if(!i.videos)i.videos=i.youtube?[{id:uid(),title:i.youtube,url:i.youtube}]:[];if(i.videos.length>1)i.videos=i.videos.slice(-1);if(i.name==="Saved Link"){const url=i.links.at(-1)?.url||i.videos.at(-1)?.url;if(url)i.name=siteName(url)}return i}function warn(m){alert("Warning: "+m)}async function videoTitle(url){try{const r=await fetch('/api/video-title?url='+encodeURIComponent(url));if(r.ok){const data=await r.json();return data.title||'Untitled Video'}}catch{}return 'Untitled Video'}const hubList=$("hubList"),hubSearch=$("hubSearch"),hubEmpty=$("hubEmpty"),hubWorkspace=$("hubWorkspace"),hubTitle=$("hubTitle"),itemList=$("itemList"),itemSearch=$("itemSearch"),libraryCount=$("libraryCount"),itemEmpty=$("itemEmpty"),detailCard=$("detailCard"),detailName=$("detailName"),mainPartName=$("mainPartName"),notesArea=$("notesArea"),videoPreview=$("videoPreview"),videoThumb=$("videoThumb"),noPreview=$("noPreview"),imageLinksList=$("imageLinksList"),videoLinksList=$("videoLinksList");function openHub(h){
   if(h.locked){toggleHubLock(h);return}
-  hubId=h.id;itemId=h.items[0]?.id||null;showLibraryDetails(false);renderAll();
+  hubId=h.id;itemId=h.items[0]?.id||null;showLibraryDetails(false);renderAll();window.MBPhone?.navigate("library");
 }
 function toggleHubLock(h,event){
   event?.preventDefault();event?.stopPropagation();
@@ -64,7 +64,7 @@ function playVideo(v){
   if(!['https:','http:'].includes(parsed.protocol))return;
   window.open(parsed.href,'_blank','noopener,noreferrer');
 }
-window.editLinkTitle=(type,id)=>{const i=item();if(!i)return;const arr=type==="video"?i.videos:i.links,x=arr.find(a=>a.id===id);if(!x)return;const n=prompt("Edit title:",x.title||x.url)?.trim();if(n){x.title=n;save();renderSaved(i)}};window.removeSaved=(type,id)=>{const i=item();if(!i)return;if(type==="video")i.videos=i.videos.filter(x=>x.id!==id);else i.links=i.links.filter(x=>x.id!==id);save();renderSaved(i);renderItems()};function renderAll(){renderHubs();renderHub()}$("addHubBtn").onclick=()=>{const name=prompt("Category name:","New Category")?.trim();if(!name)return;const h={id:uid(),name,items:[]};hubs.push(h);hubId=h.id;itemId=null;save();renderAll()};$("addItemBtn").onclick=()=>{const h=hub();if(!h)return;const i={id:uid(),name:"New Library Item",savedAt:new Date().toISOString(),links:[],videos:[],notes:""};h.items.push(i);itemId=i.id;showLibraryDetails(true);save();renderAll();mainPartName.focus();mainPartName.select()};$('clearItemName').onclick=()=>{mainPartName.value='';mainPartName.focus()};
+window.editLinkTitle=(type,id)=>{const i=item();if(!i)return;const arr=type==="video"?i.videos:i.links,x=arr.find(a=>a.id===id);if(!x)return;const n=prompt("Edit title:",x.title||x.url)?.trim();if(n){x.title=n;save();renderSaved(i)}};window.removeSaved=(type,id)=>{const i=item();if(!i)return;if(type==="video")i.videos=i.videos.filter(x=>x.id!==id);else i.links=i.links.filter(x=>x.id!==id);save();renderSaved(i);renderItems()};function renderAll(){renderHubs();renderHub()}$("addHubBtn").onclick=()=>{const name=prompt("Category name:","New Category")?.trim();if(!name)return;createCategory(name)};$("addItemBtn").onclick=()=>{const h=hub();if(!h)return;const i={id:uid(),name:"New Library Item",savedAt:new Date().toISOString(),links:[],videos:[],notes:""};h.items.push(i);itemId=i.id;showLibraryDetails(true);save();renderAll();mainPartName.focus();mainPartName.select()};$('clearItemName').onclick=()=>{mainPartName.value='';mainPartName.focus()};
 async function savePastedLink(field,createNew){
   const status=$(createNew?'quickLinkStatus':'linkSaveStatus');let url;
   try{url=new URL(norm(field.value));if(!['http:','https:'].includes(url.protocol)||!url.hostname.includes('.'))throw Error()}
@@ -183,6 +183,7 @@ function appendLibraryRow(button, entry, owner, isHub = false) {
     card.append(button,rename);row.appendChild(card);
   }
   (isHub ? hubList : itemList).appendChild(row);
+  if(!isHub)window.MBPhone?.decorate(row,entry,remove);
 }
 document.addEventListener('click', event => {
   document.querySelectorAll('.library-item-menu[open]').forEach(menu => {
@@ -408,3 +409,5 @@ window.categoryLock=async h=>{
   save();
   renderAll();
 };
+
+function createCategory(name){const h={id:uid(),name,items:[]};hubs.push(h);hubId=h.id;itemId=null;showLibraryDetails(false);save();renderAll();return h}

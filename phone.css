@@ -1,0 +1,44 @@
+.phone-only,.phone-brand{display:none}
+#phoneCategorySheet{border:1px solid #29598d;border-radius:22px 22px 0 0;background:#0b1c32;color:#edf5ff;padding:24px;width:min(100%,600px);max-width:100%;margin:auto auto 0;max-height:85dvh;overflow:auto}
+#phoneCategorySheet::backdrop{background:#02081499}
+#phoneCategorySheet label{display:block;margin:18px 0 8px}
+.phone-sheet-actions{display:flex;gap:12px;margin-top:24px}
+@media(max-width:600px){
+ body{font-size:16px;padding-bottom:calc(84px + env(safe-area-inset-bottom))}
+ .phone-only{display:block}.phone-brand{font-weight:800;font-size:21px;color:#eaf2ff}
+ .topbar{padding:18px 16px;min-height:80px}.brand-wrap>div:not(.brand-mark),.topbar-actions{display:none}
+ .brand-mark{width:44px;height:40px;font-size:24px;flex-shrink:0}
+ .dashboard{display:block;padding:0 16px}.sidebar,.main-area{min-height:0;height:auto}
+ body[data-phone-view] .sidebar,body[data-phone-view='category'] .main-area,body[data-phone-view='home'] .main-area{display:none}
+ body[data-phone-view='category'] .sidebar{display:flex;padding:16px;gap:12px}
+ .sidebar .brand-panel{display:none}#hubSearch{margin:0;font-size:16px}
+ #phoneHome{padding:24px 16px}body:not([data-phone-view='home']) #phoneHome{display:none}
+ .phone-intro h1{font-size:28px;line-height:1.2;margin:12px 0}.phone-intro p{color:#b4c6dd;font-size:15px;line-height:1.5}
+ #phoneQuick{padding:18px;background:#10263e;border:1px solid #31516f;border-radius:18px}
+ #quickLink{font-size:16px;min-height:56px}.quick-link-blinker{display:none!important}#phoneSave{margin-top:12px;width:100%}
+ #quickLinkStatus{font-size:14px;line-height:1.5}#quickLinkStatus:empty{display:none}
+ .phone-actions{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:20px 0}.phone-actions button{min-height:58px}
+ #phoneInstall{padding:20px;margin-top:24px}#phoneInstall h2{font-size:20px;margin:0}#phoneInstall p{line-height:1.5}.phone-muted{color:#adc2dd;font-size:14px}
+ #phoneNav{position:fixed;bottom:0;left:0;right:0;z-index:20;background:#09182bf5;border-top:1px solid #284563;display:grid;grid-template-columns:repeat(4,1fr);padding:10px 8px calc(10px + env(safe-area-inset-bottom));gap:4px}
+ #phoneNav button{min-height:48px;border:0;border-radius:12px;background:transparent;color:#b4c6df;font-size:14px;font-weight:700}
+ #phoneNav button[aria-current='page']{background:#163b64;color:#fff}
+ .hub-header{padding:18px}.hub-header p{display:none}#hubTitle,#detailName{font-size:24px}
+ .library-panel{min-height:0;padding:14px}.library-head{gap:12px}.library-title-search{width:100%;margin:0}.library-title-search #itemSearch{font-size:16px}
+ .library-selection{font-size:14px;gap:8px}#deleteSelectedItems{font-size:12px}
+ #itemList .library-item-row{align-items:flex-start;gap:4px;margin:8px 0}#itemList .item-checkbox{margin-top:16px}
+ #itemList .library-title-card{display:flex;flex-wrap:wrap;padding:12px;gap:10px;border:1px solid #264564;background:#081a30}
+ #itemList .library-title-card>.part-item{flex:1 1 100%;width:100%;min-width:0}.part-name{font-size:17px;overflow-wrap:anywhere}.item-saved-date{font-size:13px}
+ .phone-preview{width:100%;aspect-ratio:16/9;position:relative;overflow:hidden;background:#122b46;border:1px solid #335370;border-radius:12px;color:#bbd0e8;cursor:pointer}
+ .phone-preview img{position:absolute;width:100%;height:100%;inset:0;object-fit:cover}.phone-preview-label{position:absolute;top:18%;left:0;right:0;font-size:12px;letter-spacing:2px}
+ .phone-play{position:absolute;left:50%;top:57%;transform:translate(-50%,-50%);border-radius:50%;background:#0b80f3;color:white;width:44px;height:44px;display:grid;place-items:center}
+ .phone-domain{width:100%;color:#9ac6ef;overflow-wrap:anywhere}.phone-item-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%}
+ .phone-item-actions button{min-height:44px;border:1px solid #315678;background:#10263e;color:#c5def8;border-radius:8px;font-size:13px}.phone-item-actions .item-delete{color:#ff9ca4}
+ .item-rename{min-height:44px;height:auto;font-size:13px;padding:8px 12px}
+ body[data-phone-view='notes'] .editor-grid{display:none}body[data-phone-view='notes'] .hub-header{display:none}
+ .notes-section textarea{font-size:16px!important;min-height:220px}.share-link-row{flex-wrap:wrap}.share-link-actions{width:100%}
+ #hubDashboard[data-audio-view='true'] .main-area{display:block}body:has(#hubDashboard[data-audio-view='true']) #phoneHome{display:none}#audioPanel{padding:16px}
+ .empty-state{min-height:240px;padding:20px}.auth-card h1{font-size:26px}footer{display:none}
+ button:disabled{opacity:.5}button:focus-visible,a:focus-visible{outline:2px solid #79bfff;outline-offset:3px}
+}
+
+@media(max-width:600px){.phone-install-link{display:inline-flex;align-items:center;min-height:48px;text-decoration:none}#hubList:empty::after{content:"No categories found.";padding:20px;color:#adc2dd}}

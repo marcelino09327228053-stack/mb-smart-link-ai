@@ -31,6 +31,9 @@ function getLibrary(){
 
 // Explicit allowlist: never serve .env, backend code, tests, or repository files.
 const assets = new Map([
+  ['/downloads/mb-bubble.apk', ['downloads/mb-bubble.apk','application/vnd.android.package-archive',null]],
+  ['/phone.js', ['phone.js','text/javascript']],
+  ['/phone.css', ['phone.css','text/css']],
   ['/library-sync.js',['library-sync.js','text/javascript']],
   ['/shared-link.js', ['shared-link.cjs','text/javascript']],
   ['/category-lock.js', ['category-lock.js', 'text/javascript']],
@@ -227,8 +230,8 @@ function createServer({ apiKey = process.env.OPENAI_API_KEY, model = process.env
     }
     if (req.method !== 'GET' || !assets.has(pathname)) return send(404, { error: 'Not found.' });
     try {
-      const [file, type] = assets.get(pathname);
-      send(200, await fs.readFile(path.join(__dirname, file), 'utf8'), type);
+      const [file, type, encoding = 'utf8'] = assets.get(pathname);
+      send(200, await fs.readFile(path.join(__dirname, file), encoding), type);
     } catch { send(500, { error: 'Unable to read website asset.' }); }
   };
   return http.createServer((req,res)=>{handle(req,res).catch(()=>{
