@@ -282,7 +282,7 @@
   try {
     const saved = JSON.parse(localStorage.getItem(settingsKey) || 'null');
     if (saved && typeof saved.topic === 'string' && saved.topic.length <= 200 &&
-        typeof saved.behavior === 'string' && saved.behavior.length <= 2000) {
+        typeof saved.behavior === 'string' && saved.behavior.length <= 20000) {
       topic.value = saved.topic; behavior.value = saved.behavior;
       if (['same', 'English', 'Tagalog'].includes(saved.language)) language.value = saved.language;
       if (['text', 'voice', 'both'].includes(saved.mode)) mode.value = saved.mode;

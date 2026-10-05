@@ -244,3 +244,14 @@ test('timestamps remain stable across transcript and response streaming revision
  assert.equal(h.el('aiResponse').value,responseStamp+'\nAnswer complete');
  h.el('audioClear').handlers.click();assert.equal(h.el('audioTranscript').value,'');assert.equal(h.el('aiResponse').value,'');
 });
+
+test('20,000-character behavior survives save, reload and session validation', async()=>{
+ const behavior='A'.repeat(20000),h=await harness();
+ h.el('aiBehavior').value=behavior;h.click('aiSaveSettings');
+ const restored=await harness({storage:h.storage});assert.equal(restored.el('aiBehavior').value,behavior);
+ await restored.click('audioStart');assert.equal(restored.sentSettings().behavior,behavior);
+ const {sessionConfig}=require('../server/session.cjs');
+ assert.ok(sessionConfig({behavior}).instructions.includes(behavior));
+ assert.throws(()=>sessionConfig({behavior:behavior+'A'}),/Invalid listener settings/);
+ restored.click('audioStop');
+});

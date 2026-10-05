@@ -73,6 +73,6 @@ test('optional topic and custom behavior are passed into AI instructions', () =>
   assert.match(general.instructions, /Answer as an interview candidate/);
   assert.match(general.instructions, /do not wait for the user to supply an answer/);
   assert.match(sessionConfig({ topic: 'Automotive' }).instructions, /main context for answers: "Automotive"/);
-  assert.throws(() => sessionConfig({ behavior: 'x'.repeat(2001) }));
+  assert.throws(() => sessionConfig({ behavior: 'x'.repeat(20001) }));
   assert.throws(() => sessionConfig({ behavior: {} }));
 });
