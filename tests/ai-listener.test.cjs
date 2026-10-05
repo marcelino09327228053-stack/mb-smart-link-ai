@@ -110,8 +110,8 @@ test('streams PC audio over one persistent peer; mic defaults OFF; context survi
     h.event({ type: 'response.output_text.delta', response_id: id, delta: 'Answer ' + id });
     h.event({ type: 'response.done', response: { status: 'completed', output: [] } });
   }
-  assert.equal(h.el('audioTranscript').value, 'Question one\n\nQuestion two');
-  assert.equal(h.el('aiResponse').value, 'Answer one\n\nAnswer two');
+  assert.match(h.el('audioTranscript').value, /^\[[^\]]+\]\nQuestion one\n\n\[[^\]]+\]\nQuestion two$/);
+  assert.match(h.el('aiResponse').value, /^\[[^\]]+\]\nAnswer one\n\n\[[^\]]+\]\nAnswer two$/);
   assert.equal(h.peers.length, 1);
   await h.click('audioCopy'); assert.equal(h.copied(), h.el('audioTranscript').value);
   h.click('audioStop'); assert.equal(h.pcTrack.readyState, 'ended');
@@ -133,7 +133,7 @@ test('voice modes gate input against feedback, and Voice Only hides response tex
     h.event({ type: 'response.created', response: { id: 'r' } });
     assert.equal(h.contexts[0].gain.gain.value, 0);
     h.event({ type: 'response.output_audio_transcript.delta', response_id: 'r', delta: 'Hello' });
-    assert.equal(h.el('aiResponse').value, mode === 'voice' ? '' : 'Hello');
+    if(mode==='voice')assert.equal(h.el('aiResponse').value,'');else assert.match(h.el('aiResponse').value,/^\[[^\]]+\]\nHello$/);
     h.event({ type: 'output_audio_buffer.stopped' });
     [...h.timers.values()].at(-1)();
     assert.equal(h.contexts[0].gain.gain.value, 1);
@@ -219,4 +219,28 @@ test('AUDIO tab reveals inline panel without starting capture; hiding preserves 
   assert.equal(h.el('listenAudioBtn').textContent, 'AUDIO • LIVE');
   await h.click('listenAudioBtn'); await h.click('audioStop');
   assert.equal(h.pcTrack.readyState, 'ended');
+});
+
+ test('behavior remains editable during listening and clearing persists for the next session', async () => {
+ const h=await harness();await h.el('audioStart').handlers.click();
+ assert.equal(h.el('aiBehavior').disabled,false);assert.equal(h.el('aiSaveSettings').disabled,false);
+ h.el('aiBehavior').value='Changed behavior';h.el('aiSaveSettings').handlers.click();
+ assert.match(h.el('aiSettingsStatus').textContent,/STOP then START/);
+ h.el('aiBehavior').value='';h.el('aiSaveSettings').handlers.click();
+ h.el('audioStop').handlers.click();await h.el('audioStart').handlers.click();
+ assert.equal(h.sentSettings().behavior,'');
+ });
+
+test('timestamps remain stable across transcript and response streaming revisions and clear with text', async()=>{
+ const h=await harness();await h.el('audioStart').handlers.click();
+ h.event({type:'conversation.item.input_audio_transcription.delta',item_id:'t',delta:'Hello'});
+ const stamp=h.el('audioTranscript').value.split('\n')[0];assert.match(stamp,/^\[.+\]$/);
+ h.event({type:'conversation.item.input_audio_transcription.completed',item_id:'t',transcript:'Hello world'});
+ assert.equal(h.el('audioTranscript').value,stamp+'\nHello world');
+ h.event({type:'response.created',response:{id:'r'}});
+ h.event({type:'response.output_text.delta',response_id:'r',delta:'Answer'});
+ const responseStamp=h.el('aiResponse').value.split('\n')[0];
+ h.event({type:'response.output_text.done',response_id:'r',text:'Answer complete'});
+ assert.equal(h.el('aiResponse').value,responseStamp+'\nAnswer complete');
+ h.el('audioClear').handlers.click();assert.equal(h.el('audioTranscript').value,'');assert.equal(h.el('aiResponse').value,'');
 });

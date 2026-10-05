@@ -1,0 +1,11 @@
+process.env.MB_AUTH_DB=':memory:';process.env.MB_LIBRARY_DB=':memory:';delete process.env.PGHOST;delete process.env.DATABASE_URL;delete process.env.PUBLIC_ORIGIN;
+const {chromium}=require('playwright'),assert=require('node:assert/strict');const {createServer}=require('../server.cjs');
+(async()=>{const server=createServer();await new Promise(r=>server.listen(0,'127.0.0.1',r));const origin='http://127.0.0.1:'+server.address().port;const browser=await chromium.launch({channel:'chrome',headless:true});
+try{const page=await browser.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto(origin);await page.locator('#listenAudioBtn').click();
+ const buttons=page.locator('.desktop-panel-head button');assert.equal(await buttons.count(),2);
+ const bad=await page.request.post(origin+'/api/overlay',{headers:{Origin:'https://foreign.invalid'},data:{owner:'bad'}});assert.equal(bad.status(),403);
+ await buttons.first().click();await page.waitForFunction(()=>document.querySelector('.desktop-panel-head button').textContent==='FLOATING');
+ await buttons.last().click();await page.waitForFunction(()=>[...document.querySelectorAll('.desktop-panel-head button')].every(b=>b.textContent==='FLOATING'));
+ await page.evaluate(()=>{document.querySelector('#audioTranscript').value='Native transcript test';document.querySelector('#aiResponse').value='Native response test'});
+ await page.waitForTimeout(1000);assert.deepEqual(errors,[]);console.log('PASS: native panel launch, both panels, same-origin protection, browser text updates and no JS errors.');
+}finally{await browser.close();server.closeAllConnections();await new Promise(r=>server.close(r))}})().catch(e=>{console.error(e.message);process.exitCode=1});

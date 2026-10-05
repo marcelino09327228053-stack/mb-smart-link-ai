@@ -1,0 +1,7 @@
+/* Windows output panels only. */
+.ai-output #audioTranscript,.ai-output #aiResponse{background:rgba(7,20,38,.35);color:#f0f6ff}
+.desktop-panel-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;cursor:grab;touch-action:none}
+.desktop-panel-head label{margin:0!important;cursor:grab}
+.desktop-panel-head button{font-size:13px;flex-shrink:0}
+.desktop-panel-note{font-size:13px;color:#b9d2ee;line-height:1.5;grid-column:1/-1;margin:0}
+.desktop-panel-head:active{cursor:grabbing}

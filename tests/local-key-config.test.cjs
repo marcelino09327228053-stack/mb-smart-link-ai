@@ -1,0 +1,6 @@
+const {test}=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs');
+const source=fs.readFileSync(require.resolve('../server.cjs'),'utf8');
+const loader=source.slice(source.indexOf('if(require.main===module)'),source.indexOf('const usePostgres='));
+function load(inherited,file){const env={...inherited},module={};const req=name=>name==='node:util'?{parseEnv:()=>file}:{readFileSync:()=>''};req.main=module;vm.runInNewContext(loader,{require:req,module,process:{env},path:{join:()=>''},__dirname:'.'});return env}
+test('local .env key overrides stale inherited key; other inherited settings remain unchanged',()=>{const result=load({OPENAI_API_KEY:'old-test',PORT:'5500'},{OPENAI_API_KEY:'new-test',PORT:'9999'});assert.equal(result.OPENAI_API_KEY,'new-test');assert.equal(result.PORT,'5500')});
+test('production retains injected key and missing .env key retains inherited key',()=>{for(const [inherited,file] of [[{NODE_ENV:'production',OPENAI_API_KEY:'host-test'},{OPENAI_API_KEY:'file-test'}],[{OPENAI_API_KEY:'host-test'},{NODE_ENV:'production',OPENAI_API_KEY:'file-test'}],[{OPENAI_API_KEY:'host-test'},{}]])assert.equal(load(inherited,file).OPENAI_API_KEY,'host-test')});

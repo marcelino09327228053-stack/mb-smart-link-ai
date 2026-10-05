@@ -9,7 +9,10 @@ if(require.main===module)try{
     require('node:fs').readFileSync(path.join(__dirname,'.env'),'utf8')
   );
   for(const name of ['OPENAI_API_KEY','OPENAI_REALTIME_MODEL','PORT','AUDIO_HELPER_PORT','DEV_SAMPLE_LOGIN','PUBLIC_ORIGIN','DATABASE_URL','NODE_ENV','PGHOST','PGPORT','PGDATABASE','PGUSER','PGPASSWORD','EMAIL_PROVIDER','RESEND_API_KEY','RESEND_FROM_EMAIL']){
-    if(env[name]?.trim()&&process.env[name]===undefined)process.env[name]=env[name];
+    // Local key replacement must not be shadowed by a stale Windows user key.
+    // Production hosting continues to prioritize its injected environment.
+    if(env[name]?.trim()&&(process.env[name]===undefined||
+      (name==='OPENAI_API_KEY'&&process.env.NODE_ENV!=='production'&&env.NODE_ENV!=='production')))process.env[name]=env[name];
   }
 }catch(error){
   if(error.code!=='ENOENT')throw error;
@@ -31,6 +34,8 @@ function getLibrary(){
 
 // Explicit allowlist: never serve .env, backend code, tests, or repository files.
 const assets = new Map([
+  ['/desktop-panels.js', ['desktop-panels.js','text/javascript']],
+  ['/desktop-panels.css', ['desktop-panels.css','text/css']],
   ['/downloads/mb-bubble.apk', ['downloads/mb-bubble.apk','application/vnd.android.package-archive',null]],
   ['/phone.js', ['phone.js','text/javascript']],
   ['/phone.css', ['phone.css','text/css']],
@@ -45,6 +50,7 @@ const assets = new Map([
 ]);
 function createServer({ apiKey = process.env.OPENAI_API_KEY, model = process.env.OPENAI_REALTIME_MODEL || 'gpt-realtime', fetchImpl = fetch, emailFetch = fetch } = {}) {
   let pending = 0;
+  const overlay=require('./server/overlay.cjs').overlayBridge();
   const mail=require('./server/email.cjs').emailDelivery({fetchImpl:emailFetch});
   const otpRequests=new Map();
   const publicOrigin=process.env.PUBLIC_ORIGIN ? new URL(process.env.PUBLIC_ORIGIN) : null;
@@ -187,6 +193,17 @@ function createServer({ apiKey = process.env.OPENAI_API_KEY, model = process.env
       if (!url || url.length > 4096) return send(400, { error: 'Invalid video URL.' });
       return send(200, { title: await videoTitle(url) });
     }
+    if(req.method==='GET'&&pathname==='/api/overlay/events'){
+      if(!isLocal||req.headers['sec-fetch-site']!=='same-origin')return send(403,{error:'Local same-origin request required.'});
+      const owner=new URL(req.url,'http://localhost').searchParams.get('owner');
+      if(!overlay.subscribe(owner,res))return send(404,{error:'No active overlay for this tab.'});
+      return;
+    }
+    if(req.method==='POST'&&pathname==='/api/overlay'){
+      if(!isLocal||!sameOrigin())return send(403,{error:'Windows panels require same-origin localhost access.'});
+      try{return send(200,await overlay.update(await readJson(),req.socket.localPort))}
+      catch(error){return send(503,{error:error.message==='Another browser tab is using the floating panels.'?error.message:'Could not open Windows panels. Check that Python with Tk support is installed.'})}
+    }
     if (req.method === 'POST' && pathname === '/api/session') {
       if (!sameOrigin())
         return send(403, { error: 'Same-origin JSON request required.' });
@@ -234,10 +251,12 @@ function createServer({ apiKey = process.env.OPENAI_API_KEY, model = process.env
       send(200, await fs.readFile(path.join(__dirname, file), encoding), type);
     } catch { send(500, { error: 'Unable to read website asset.' }); }
   };
-  return http.createServer((req,res)=>{handle(req,res).catch(()=>{
+  const server=http.createServer((req,res)=>{handle(req,res).catch(()=>{
     if(!res.headersSent){res.writeHead(503,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify({error:'Service temporarily unavailable. Please try again.'}))}
     else res.destroy();
   })});
+  server.on('close',()=>overlay.stop());
+  return server;
 }
 if (require.main === module) {
   (async()=>{

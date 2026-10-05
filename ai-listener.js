@@ -32,6 +32,7 @@
   const settingsKey = 'mb_knowledge_ai_preferences_v1';
   let savedTopics = [];
   const inputs = new Map(), replies = new Map();
+  const inputTimes = new Map(), replyTimes = new Map();
   let active = null, serial = 0, configured = false;
 
   function supported() {
@@ -47,14 +48,21 @@
     sourceMode.disabled = !!active;
     start.setAttribute('aria-pressed', String(!!active));
     stop.disabled = !active;
-    topic.disabled = behavior.disabled = saveSettings.disabled = interview.disabled = language.disabled = mode.disabled = !!active;
+    topic.disabled = language.disabled = mode.disabled = !!active;
+    behavior.disabled = saveSettings.disabled = interview.disabled = false;
     mic.disabled = !active?.ready || !!active?.micPending;
     $('aiMicState').textContent = mic.checked ? 'ON' : 'OFF';
     $('audioCopy').disabled = !transcript.value;
   }
+  function timedText(entries, times) {
+    return [...entries].filter(([, text]) => text).map(([id, text]) => {
+      if (!times.has(id)) times.set(id, new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+      return '[' + times.get(id) + ']\n' + text;
+    }).join('\n\n');
+  }
   function render() {
-    transcript.value = [...inputs.values()].join('\n\n');
-    response.value = mode.value === 'voice' ? '' : [...replies.values()].join('\n\n');
+    transcript.value = timedText(inputs, inputTimes);
+    response.value = mode.value === 'voice' ? '' : timedText(replies, replyTimes);
     transcript.scrollTop = transcript.scrollHeight;
     response.scrollTop = response.scrollHeight;
     $('audioCopy').disabled = !transcript.value;
@@ -213,7 +221,7 @@
       const source = await sources.acquire({ mode: s.sourceMode, enabled: helperOn.checked }, s.abort.signal);
       if (s !== active) { source.close(); return; }
       s.source = source; s.capture = source.stream;
-      inputs.clear(); replies.clear(); render();
+      inputs.clear(); replies.clear(); inputTimes.clear(); replyTimes.clear(); render();
       s.context = new AudioContext();
       await s.context.resume();
       if (s !== active) return;
@@ -290,10 +298,10 @@
       localStorage.setItem(settingsKey, JSON.stringify({ topic: currentTopic, behavior: behavior.value.trim(),
         language: language.value, mode: mode.value, topics }));
       savedTopics = topics; addSavedTopics();
-      settingsStatus.textContent = currentTopic ? 'Saved. AI will use this topic and behavior when you start listening.' : 'Saved. No topic restriction; AI will answer generally using your behavior instructions.';
+      settingsStatus.textContent = active ? 'Saved. STOP then START LISTENING to apply the updated behavior.' : (currentTopic ? 'Saved. AI will use this topic and behavior when you start listening.' : 'Saved. No topic restriction; AI will answer generally using your behavior instructions.');
     } catch { settingsStatus.textContent = 'Could not save in this browser. Current settings still apply to your next listening session.'; }
   });
-  const markUnsaved = () => { settingsStatus.textContent = 'Unsaved changes. SAVE to remember them; current settings apply when you start listening.'; };
+  const markUnsaved = () => { settingsStatus.textContent = active ? 'Unsaved changes. SAVE, then STOP and START LISTENING to apply them.' : 'Unsaved changes. SAVE to remember them; current settings apply when you start listening.'; };
   for (const field of [topic, behavior, language, mode]) field.addEventListener('input', markUnsaved);
   interview.addEventListener('click', () => {
     behavior.value = 'Answer directly in first person as the interview candidate. Give a concise, natural answer to the question, not coaching or an explanation of how to answer. Do not ask me to answer first. Use only personal details I have provided; otherwise clearly frame it as a sample answer.';
@@ -339,7 +347,7 @@
     catch { status.textContent = 'Audio playback is blocked. Check browser sound permissions.'; }
   });
   $('audioClear').addEventListener('click', () => {
-    inputs.clear(); replies.clear(); render();
+    inputs.clear(); replies.clear(); inputTimes.clear(); replyTimes.clear(); render();
     status.textContent = 'Displayed text cleared. AI context remains until STOP.';
   });
   $('audioCopy').addEventListener('click', async () => {
