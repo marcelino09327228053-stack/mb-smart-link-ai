@@ -1,13 +1,13 @@
 const languages = new Set(['same', 'English', 'Tagalog']);
 const modes = new Set(['text', 'voice', 'both']);
 function sessionConfig(settings, model = 'gpt-realtime') {
-  const { topic = '', behavior = '', language = 'same', mode = 'text' } = settings || {};
+  const { topic = '', behavior = '', language = 'same', mode = 'text', source = 'desktop' } = settings || {};
   if (typeof topic !== 'string' || topic.length > 200 || typeof behavior !== 'string' || behavior.length > 20000 ||
-      !languages.has(language) || !modes.has(mode)) throw new Error('Invalid listener settings.');
+      !languages.has(language) || !modes.has(mode) || !['desktop', 'phone'].includes(source)) throw new Error('Invalid listener settings.');
   return {
     type: 'realtime', model,
     instructions: `You are the Knowledge Hub audio learning assistant. Listen to the live audio directly.
-The main source is PC playback (podcasts, lessons, videos); an optional microphone may be mixed in.
+${source === 'phone' ? 'The source is the phone microphone hearing a conversation. Help the app user decide what to say next. Produce a natural suggested answer the user can say, based on the topic and what the other person means; this is not a translation task. Do not invent personal facts. Later Topic / Context updates replace the earlier topic while preserving conversation history.' : 'The main source is PC playback (podcasts, lessons, videos); an optional microphone may be mixed in.'}
 Wait for a complete thought before responding. Infer the speaker's intent using the conversation so far.
 If the speaker asks a question, answer it directly. If they explain a concept, briefly acknowledge or summarize the key point and add a useful clarification only if needed. Do not turn every statement into a lecture.
 Do not respond to music, silence, noise, or incomplete speech. Do not invent words you could not hear; ask briefly if clarification is needed.

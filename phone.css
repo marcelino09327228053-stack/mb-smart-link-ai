@@ -42,3 +42,26 @@
 }
 
 @media(max-width:600px){.phone-install-link{display:inline-flex;align-items:center;min-height:48px;text-decoration:none}#hubList:empty::after{content:"No categories found.";padding:20px;color:#adc2dd}}
+
+/* Phone-only listener and app navigation. Desktop rules remain untouched. */
+@media(max-width:600px){
+ .topbar{position:sticky;top:0;z-index:21;background:#07162a;padding-top:calc(14px + env(safe-area-inset-top))}
+ .phone-brand{font-size:19px}.brand-wrap{gap:12px}
+ #phoneNav{position:sticky;top:calc(80px + env(safe-area-inset-top));bottom:auto;padding:6px 10px;background:#0b1c32;border-top:0;border-bottom:1px solid #284563}
+ #phoneNav button{font-size:12px;min-width:0}
+ body{padding-bottom:env(safe-area-inset-bottom)}
+ body[data-phone-view='listen'] #hubDashboard{display:none}
+ #phoneListen{padding:24px 16px}
+ body:not([data-phone-view='listen']) #phoneListen{display:none}
+ .phone-listen-heading h1{font-size:32px;line-height:1.15;margin:10px 0}
+ .phone-listen-heading p,.phone-muted{color:#a8c0dc;line-height:1.5}
+ .phone-listen-card{padding:20px;margin:18px 0;border:1px solid #2c4969;border-radius:20px;background:#0c2038}
+ .phone-listen-card label{display:block;font-size:14px;font-weight:700;color:#cbe3ff;margin-bottom:12px}
+ .phone-listen-card input,.phone-listen-card textarea{box-sizing:border-box;width:100%;font-size:16px;border:1px solid #365879;border-radius:12px;background:#07172b;color:#f0f6ff;padding:14px;line-height:1.5}
+ .phone-listen-card textarea{resize:vertical;min-height:130px}
+ #phoneListenToggle{width:100%;min-height:74px;font-size:22px;margin-top:12px;border-radius:16px}
+ #phoneListenToggle[aria-pressed='true']{background:#164a66;border:1px solid #6dc4f1}
+ #phoneListenStatus{font-weight:700;color:#79d9bd;text-align:center;margin:16px 0 8px}
+ #phoneListenReset{width:100%;min-height:44px;margin-top:8px}
+ .phone-answer{border-color:#347589}.phone-answer label{color:#8eebcf}
+}

@@ -34,6 +34,12 @@ function getLibrary(){
 
 // Explicit allowlist: never serve .env, backend code, tests, or repository files.
 const assets = new Map([
+  ['/mobile-listener.js', ['mobile-listener.js','text/javascript']],
+  ['/pwa.js', ['pwa.js','text/javascript']],
+  ['/sw.js', ['sw.js','text/javascript']],
+  ['/manifest.webmanifest', ['manifest.webmanifest','application/manifest+json']],
+  ['/icons/mb-192.png', ['icons/mb-192.png','image/png',null]],
+  ['/icons/mb-512.png', ['icons/mb-512.png','image/png',null]],
   ['/desktop-panels.js', ['desktop-panels.js','text/javascript']],
   ['/desktop-panels.css', ['desktop-panels.css','text/css']],
   ['/downloads/mb-bubble.apk', ['downloads/mb-bubble.apk','application/vnd.android.package-archive',null]],

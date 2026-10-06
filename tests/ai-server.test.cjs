@@ -76,3 +76,24 @@ test('optional topic and custom behavior are passed into AI instructions', () =>
   assert.throws(() => sessionConfig({ behavior: 'x'.repeat(20001) }));
   assert.throws(() => sessionConfig({ behavior: {} }));
 });
+
+test('phone session uses conversation suggestions while desktop defaults stay unchanged',async()=>{
+ const phone=sessionConfig({source:'phone',topic:'Panel Beater Job Interview'});
+ assert.match(phone.instructions,/phone microphone/);assert.match(phone.instructions,/not a translation task/);
+ assert.doesNotMatch(phone.instructions,/main source is PC playback/);
+ assert.match(sessionConfig({}).instructions,/main source is PC playback/);
+ assert.throws(()=>sessionConfig({source:'invalid'}));
+ await withServer({apiKey:'private-test-key',fetchImpl:async(url,options)=>{
+   const config=JSON.parse(options.body.get('session'));assert.match(config.instructions,/phone microphone/);
+   assert.match(config.instructions,/Panel Beater Job Interview/);return new Response('v=0\r\ns=phone');
+ }},async base=>{
+   const result=await fetch(base+'/api/session',request(base,{source:'phone',topic:'Panel Beater Job Interview'}));
+   assert.equal(result.status,200);assert.equal(await result.text(),'v=0\r\ns=phone');
+   for(const asset of ['mobile-listener.js','pwa.js','sw.js','manifest.webmanifest','icons/mb-192.png','icons/mb-512.png']){
+     const r=await fetch(base+'/'+asset);assert.equal(r.status,200);
+     assert.doesNotMatch(await r.text(),/private-test-key/);
+   }
+   const manifest=await fetch(base+'/manifest.webmanifest').then(r=>r.json());
+   assert.equal(manifest.display,'standalone');assert.equal(manifest.start_url,'/');assert.equal(manifest.scope,'/');
+ });
+});

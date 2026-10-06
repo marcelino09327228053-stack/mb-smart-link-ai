@@ -2,18 +2,23 @@
 (()=>{
  const phone=matchMedia('(max-width:600px)'),body=document.body;
  const home=document.createElement('section');home.id='phoneHome';home.className='phone-only';
- home.innerHTML=`<div class="phone-intro"><span class="eyebrow">YOUR LINKS, TOGETHER</span><h1>Save something worth keeping.</h1><p id="phoneTarget"></p></div><div id="phoneQuick"></div><div class="phone-actions"><button id="phoneAudio" class="small-btn">Audio</button><button id="phoneAdd" class="small-btn">Add Category</button><button id="phoneSettings" class="small-btn">Settings</button><button id="phoneLogout" class="small-btn">Log Out</button></div><aside id="phoneInstall" class="glass-card" hidden><h2>Keep MB within reach</h2><p>The Android app adds the floating MB button over your other apps.</p><a class="small-btn phone-install-link" href="/downloads/mb-bubble.apk" download="mb-bubble.apk">Install MB Bubble</a><p class="phone-muted">Download the Android test APK, then open it to install. Android will ask for permission.</p></aside>`;
+ home.innerHTML=`<div class="phone-intro"><span class="eyebrow">YOUR LINKS, TOGETHER</span><h1>Save something worth keeping.</h1><p id="phoneTarget"></p></div><div id="phoneQuick"></div><div class="phone-actions"><button id="phoneAudio" class="small-btn">AI LISTEN</button><button id="phoneAdd" class="small-btn">Add Category</button><button id="phoneSettings" class="small-btn">Settings</button><button id="phoneLogout" class="small-btn">Log Out</button></div><aside id="phoneInstall" class="glass-card" hidden><h2>Keep MB within reach</h2><p>The Android app adds the floating MB button over your other apps.</p><a class="small-btn phone-install-link" href="/downloads/mb-bubble.apk" download="mb-bubble.apk">Install MB Bubble</a><p class="phone-muted">Download the Android test APK, then open it to install. Android will ask for permission.</p></aside>`;
  document.querySelector('.topbar').after(home);
  const nav=document.createElement('nav');nav.id='phoneNav';nav.className='phone-only';nav.setAttribute('aria-label','Phone navigation');
- nav.innerHTML=['Home','Category','Library','Notes'].map(name=>`<button data-view="${name.toLowerCase()}" type="button">${name}</button>`).join('');body.append(nav);
+ nav.innerHTML=[['home','HOME'],['category','CATEGORY'],['library','LIBRARY'],['listen','AI LISTEN']].map(([view,name])=>`<button data-view="${view}" type="button">${name}</button>`).join('');document.querySelector('.topbar').after(nav);
  const sheet=document.createElement('dialog');sheet.id='phoneCategorySheet';sheet.innerHTML=`<form><h2>Add New Category</h2><label for="phoneCategoryName">Category Name</label><input id="phoneCategoryName" required maxlength="200" autocomplete="off"><div class="phone-sheet-actions"><button type="button" class="small-btn" id="phoneCancel">Cancel</button><button class="save-btn" type="submit">Create</button></div></form>`;body.append(sheet);
  const quick=document.querySelector('.quick-link-wrap'),status=$('quickLinkStatus'),anchor=document.createComment('quick-link original position');quick.before(anchor);
  const saveButton=document.createElement('button');saveButton.id='phoneSave';saveButton.className='save-btn phone-only';saveButton.textContent='Save Link';quick.after(saveButton);saveButton.onclick=()=>{if(hub()&&!hub().locked)savePastedLink($('quickLink'),true)};
- const brand=document.createElement('span');brand.className='phone-brand phone-only';brand.textContent='MB Future Link AI';document.querySelector('.brand-wrap').append(brand);
+ const brand=document.createElement('span');brand.className='phone-brand phone-only';brand.textContent='MB Smart Link AI';document.querySelector('.brand-wrap').append(brand);
+ const listener=document.createElement('section');listener.id='phoneListen';listener.className='phone-only';
+ listener.setAttribute('aria-labelledby','phoneListenTitle');
+ listener.innerHTML=`<div class="phone-listen-heading"><span class="eyebrow">YOUR CONVERSATION COMPANION</span><h1 id="phoneListenTitle">AI Listen</h1><p>Hear the conversation. Find your words.</p></div><div class="phone-listen-card"><label for="phoneTopic">Topic / Context</label><input id="phoneTopic" maxlength="200" placeholder="Panel Beater Job Interview" autocomplete="off"><p id="phoneTopicHint" class="phone-muted">Set the topic, then listen. You can change it during the conversation.</p><button id="phoneListenToggle" class="save-btn" type="button" aria-pressed="false" disabled>LISTEN</button><p id="phoneListenStatus" role="status" aria-live="polite">Ready</p><p id="phoneListenDetail" class="phone-muted">Uses this phone's microphone. Keep this screen open while listening.</p><button id="phoneListenReset" class="small-btn" type="button">Clear / Reset conversation</button></div><div class="phone-listen-card"><label for="phoneTranscript">Live Transcript</label><textarea id="phoneTranscript" rows="5" readonly placeholder="The conversation will appear here..."></textarea></div><div class="phone-listen-card phone-answer"><label for="phoneAnswer">AI Suggested Answer</label><textarea id="phoneAnswer" rows="6" readonly placeholder="Your suggested response will appear here..."></textarea></div>`;
+ home.after(listener);
  let view='home';
  function navigate(next){
   if(!phone.matches)return;
   if($('hubDashboard').dataset.audioView==='true')$('audioBack').click();
+  if(next!=='listen')window.MBPhoneListener?.pause();
   view=next;body.dataset.phoneView=next;
   nav.querySelectorAll('button').forEach(b=>{b.setAttribute('aria-current',b.dataset.view===next?'page':'false')});
   if(next==='library')showLibraryDetails(false);
@@ -30,14 +35,14 @@
  }
  function layout(){
   if(phone.matches){$('phoneQuick').append(quick,saveButton,status);$('quickLink').placeholder='Paste your link here...';hubSearch.placeholder='Search category...';navigate(view)}
-  else{anchor.after(quick);quick.after(saveButton);saveButton.after(status);$('quickLink').placeholder='';hubSearch.placeholder='Search categories...';$('quickLink').disabled=false;if(sheet.open)sheet.close()}
+  else{window.MBPhoneListener?.pause();anchor.after(quick);quick.after(saveButton);saveButton.after(status);$('quickLink').placeholder='';hubSearch.placeholder='Search categories...';$('quickLink').disabled=false;if(sheet.open)sheet.close()}
  }
  function addCategory(){sheet.showModal();$('phoneCategoryName').value='';$('phoneCategoryName').focus()}
  const oldAdd=$('addHubBtn').onclick;$('addHubBtn').onclick=()=>phone.matches?addCategory():oldAdd();
  $('phoneAdd').onclick=addCategory;$('phoneCancel').onclick=()=>sheet.close();
  sheet.querySelector('form').onsubmit=e=>{e.preventDefault();const name=$('phoneCategoryName').value.trim();if(!name)return;createCategory(name);sheet.close();navigate('category');$('addHubBtn').focus()};
  sheet.addEventListener('click',e=>{if(e.target===sheet)sheet.close()});
- $('phoneAudio').onclick=()=>$('listenAudioBtn').click();$('phoneSettings').onclick=()=>$('categorySettingsBtn').click();$('phoneLogout').onclick=()=>$('logoutBtn').click();
+ $('phoneAudio').onclick=()=>navigate('listen');$('phoneSettings').onclick=()=>$('categorySettingsBtn').click();$('phoneLogout').onclick=()=>$('logoutBtn').click();
  nav.onclick=e=>{const b=e.target.closest('button');if(b)navigate(b.dataset.view)};
  $('phoneInstall').hidden=!/Android/i.test(navigator.userAgent);
  function decorate(row,entry,remove){
