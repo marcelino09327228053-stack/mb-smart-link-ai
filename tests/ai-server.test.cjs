@@ -79,7 +79,7 @@ test('optional topic and custom behavior are passed into AI instructions', () =>
 
 test('phone session uses conversation suggestions while desktop defaults stay unchanged',async()=>{
  const phone=sessionConfig({source:'phone',topic:'Panel Beater Job Interview'});
- assert.match(phone.instructions,/phone microphone/);assert.match(phone.instructions,/not a translation task/);
+ assert.match(phone.instructions,/phone microphone/);assert.match(phone.instructions,/No greetings/);assert.match(phone.instructions,/output only the translation/);assert.match(phone.instructions,/Do not append follow-up/);
  assert.doesNotMatch(phone.instructions,/main source is PC playback/);
  assert.match(sessionConfig({}).instructions,/main source is PC playback/);
  assert.throws(()=>sessionConfig({source:'invalid'}));

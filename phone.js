@@ -13,8 +13,34 @@
  const brand=document.createElement('span');brand.className='phone-brand phone-only';brand.textContent='Smart Link AI';document.querySelector('.brand-wrap').append(brand);
  const listener=document.createElement('section');listener.id='phoneListen';listener.className='phone-only';
  listener.setAttribute('aria-labelledby','phoneListenTitle');
- listener.innerHTML=`<div class="phone-listen-heading"><h1 id="phoneListenTitle">AI Listen</h1></div><div class="phone-listen-card"><input id="phoneTopic" type="hidden" value=""><button id="phoneListenToggle" class="save-btn" type="button" aria-pressed="false" disabled>LISTEN</button><p id="phoneListenStatus" role="status" aria-live="polite">Ready</p><p id="phoneListenDetail" class="phone-muted"></p><button id="phoneListenReset" class="small-btn" type="button">Clear / Reset conversation</button></div><div class="phone-listen-card"><label for="phoneTranscript">Live Transcript</label><textarea id="phoneTranscript" rows="2" readonly placeholder="The conversation will appear here..."></textarea></div><div class="phone-listen-card phone-answer"><label for="phoneAnswer">AI Suggested Answer</label><textarea id="phoneAnswer" rows="14" readonly placeholder="Your suggested response will appear here..."></textarea></div>`;
+ listener.innerHTML=`<div class="phone-listen-heading"><h1 id="phoneListenTitle">AI Listen</h1></div><div class="phone-listen-card"><label for="phoneTopic">Topic</label><input id="phoneTopic" maxlength="200" placeholder="Example: Panel beater interview" autocomplete="off"><button id="phoneListenToggle" class="save-btn" type="button" aria-pressed="false" disabled>LISTEN</button><p id="phoneListenStatus" role="status" aria-live="polite">Ready</p><p id="phoneListenDetail" class="phone-muted"></p><button id="phoneListenReset" class="small-btn" type="button">Clear / Reset conversation</button></div><div class="phone-listen-card"><label for="phoneTranscript">Live Transcript</label><textarea id="phoneTranscript" rows="2" readonly placeholder="The conversation will appear here..."></textarea></div><div class="phone-listen-card phone-answer"><label for="phoneAnswer">AI Suggested Answer</label><textarea id="phoneAnswer" rows="14" readonly placeholder="Your suggested response will appear here..."></textarea></div>`;
  home.after(listener);
+ // Move the same control, retaining its auth gate and microphone handlers.
+ const control=document.getElementById('phoneListenToggle');
+ let drag=null,suppressClick=false;
+ control.addEventListener('pointerdown',e=>{
+  if(e.button!==0||control.disabled)return;
+  const r=control.getBoundingClientRect();
+  drag={id:e.pointerId,x:e.clientX,y:e.clientY,left:r.left,top:r.top,moved:false};
+  suppressClick=false;control.setPointerCapture(e.pointerId);
+ });
+ function place(left,top){
+  const r=listener.getBoundingClientRect();
+  control.classList.add('phone-listen-dragged');
+  control.style.left=Math.max(0,Math.min(left-r.left,listener.clientWidth-control.offsetWidth))+'px';
+  control.style.top=Math.max(0,Math.min(top-r.top,listener.clientHeight-control.offsetHeight))+'px';
+ }
+ control.addEventListener('pointermove',e=>{
+  if(!drag||drag.id!==e.pointerId)return;
+  const dx=e.clientX-drag.x,dy=e.clientY-drag.y;
+  if(!drag.moved&&Math.hypot(dx,dy)<8)return;
+  drag.moved=true;place(drag.left+dx,drag.top+dy);
+ });
+ function finish(e){if(!drag||drag.id!==e.pointerId)return;suppressClick=drag.moved;drag=null;}
+ control.addEventListener('pointerup',finish);control.addEventListener('pointercancel',finish);
+ control.addEventListener('click',e=>{if(suppressClick){suppressClick=false;e.preventDefault();e.stopImmediatePropagation();}},true);
+ window.addEventListener('resize',()=>{if(control.classList.contains('phone-listen-dragged')){const r=control.getBoundingClientRect();place(r.left,r.top);}});
+
  let view='home';
  function navigate(next){
   if(!phone.matches)return;

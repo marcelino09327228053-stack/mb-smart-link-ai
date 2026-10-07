@@ -111,3 +111,11 @@
  #phoneListenDetail:empty{display:none}
  #phoneListenToggle{touch-action:manipulation}
 }
+
+@media(max-width:600px){
+ #phoneListen{position:relative}
+ #phoneListenToggle{width:150px;min-height:52px;font-size:18px;touch-action:none;user-select:none}
+ #phoneListenToggle.phone-listen-dragged{position:absolute;margin:0;z-index:10;box-shadow:0 3px 16px #0008}
+ #phoneTopic{width:100%;font-size:16px;min-height:48px}
+ #phoneAnswer{min-height:480px;height:70dvh}
+}
