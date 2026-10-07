@@ -31,6 +31,29 @@ const {createServer}=require('../server.cjs');
   const navBox=await page.locator('#phoneNav').boundingBox(),headerBox=await page.locator('.topbar').boundingBox();assert.ok(Math.abs(navBox.y-headerBox.y-headerBox.height)<2);
   await page.evaluate(()=>{hub().items[0].name='A very long saved title '.repeat(20);renderAll()});assert.ok(await page.locator('.phone-browse-title').first().evaluate(e=>e.scrollWidth>e.clientWidth&&getComputedStyle(e).textOverflow==='ellipsis'));
 
+  // Shared auth UI uses the existing modal; server responses are mocked only in this test.
+  let authUser=null;
+  await page.route('**/api/auth/me',r=>r.fulfill({status:authUser?200:401,json:{user:authUser}}));
+  await page.locator('#phoneNav [data-view="listen"]').click();
+  await page.waitForFunction(()=>document.querySelector('#androidListenAccount').textContent.includes('Not signed in'));
+  assert.ok(await page.locator('#phoneListenToggle').isDisabled());
+  await page.locator('#androidListenAccount button').click();
+  assert.ok(await page.locator('#authGate').isVisible());
+  await page.locator('#authCancelBtn').click();
+  assert.ok(await page.locator('#phoneListenToggle').isDisabled());
+  authUser={id:'test-user',email:'test@example.invalid'};
+  await page.evaluate(()=>window.dispatchEvent(new Event('focus')));
+  await page.waitForFunction(()=>document.querySelector('#androidListenAccount').textContent.includes('Signed in'));
+  assert.equal(await page.locator('#phoneListenToggle').isDisabled(),false);
+  assert.equal(await page.locator('#androidListenAccount button').isVisible(),false);
+  await page.addScriptTag({url:'/listen-auth.js?v=1'});
+  assert.equal(await page.locator('#androidListenAccount').count(),1);
+  authUser=null;
+  await page.evaluate(()=>window.dispatchEvent(new Event('focus')));
+  await page.waitForFunction(()=>document.querySelector('#androidListenAccount').textContent.includes('Not signed in'));
+  assert.ok(await page.locator('#phoneListenToggle').isDisabled());
+  await page.locator('#phoneNav [data-view="home"]').click();
+
   fs.mkdirSync('artifacts/phone',{recursive:true});await page.screenshot({path:'artifacts/phone/home.png',fullPage:true});
   await page.locator('#phoneNav [data-view="library"]').click();await page.screenshot({path:'artifacts/phone/library.png',fullPage:true});
   for(const width of [360,390,600,768,1440]){await page.setViewportSize({width,height:900});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'overflow '+width)}

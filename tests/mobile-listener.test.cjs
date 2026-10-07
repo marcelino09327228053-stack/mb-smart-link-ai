@@ -87,3 +87,15 @@ test('pause during connection never enables audio when session arrives; late top
  h.event({type:'session.created'});assert.equal(h.tracks[0].enabled,false);assert.equal(h.el('phoneListenStatus').textContent,'Paused');
  assert.match(h.peers[0].dc.sent[0].item.content[0].text,/Updated/);
 });
+
+test('PAUSE returns LISTEN synchronously while an answer is processing, without reconnecting',async()=>{
+ const h=await harness();await h.begin();h.event({type:'session.created'});
+ h.event({type:'response.created',response:{id:'r'}});
+ h.el('phoneListenToggle').handlers.click();
+ assert.equal(h.el('phoneListenToggle').textContent,'LISTEN');
+ assert.equal(h.el('phoneListenToggle').disabled,false);
+ assert.equal(h.tracks[0].enabled,false);
+ h.event({type:'response.output_text.delta',response_id:'r',delta:'Answer'});
+ assert.equal(h.el('phoneListenToggle').textContent,'LISTEN');
+ assert.equal(h.requests.filter(r=>r.url==='/api/session').length,1);
+});

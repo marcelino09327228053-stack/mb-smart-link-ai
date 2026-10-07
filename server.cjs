@@ -34,6 +34,7 @@ function getLibrary(){
 
 // Explicit allowlist: never serve .env, backend code, tests, or repository files.
 const assets = new Map([
+  ['/listen-auth.js', ['listen-auth.js','text/javascript']],
   ['/mobile-listener.js', ['mobile-listener.js','text/javascript']],
   ['/pwa.js', ['pwa.js','text/javascript']],
   ['/sw.js', ['sw.js','text/javascript']],

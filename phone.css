@@ -104,3 +104,10 @@
  .phone-browse-title,button,a{transition:background-color .15s,border-color .15s}
 }
 @media(prefers-reduced-motion:reduce){.phone-browse-title,button,a{transition:none}}
+
+@media(max-width:600px){
+ #phoneTranscript{min-height:78px;height:90px;font-size:14px}
+ #phoneAnswer{min-height:360px;height:52dvh;font-size:18px;line-height:1.6}
+ #phoneListenDetail:empty{display:none}
+ #phoneListenToggle{touch-action:manipulation}
+}

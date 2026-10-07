@@ -15,7 +15,7 @@
     toggle.textContent = active ? (active.ready ? active.paused ? 'LISTEN' : 'PAUSE' : 'CONNECTING...') : 'LISTEN';
     toggle.setAttribute('aria-pressed', String(!!active?.ready && !active.paused));
   }
-  function state(label, message) { status.textContent = label; if (message) detail.textContent = message; controls(); }
+  function state(label, message) { status.textContent = label; if (message !== undefined) detail.textContent = message; controls(); }
   function render() {
     transcript.value = [...inputs.values()].filter(Boolean).join('\n\n');
     answer.value = [...replies.values()].filter(Boolean).join('\n\n');
@@ -44,7 +44,7 @@
     if (!s) return;
     s.paused = true;
     s.stream?.getAudioTracks().forEach(track => { track.enabled = false; });
-    state('Paused', 'Microphone audio is paused. LISTEN resumes this conversation.');
+    state('Paused', '');
   }
   function handle(s, event) {
     if (s !== active) return;
@@ -52,7 +52,7 @@
     if (type === 'session.created' || type === 'session.updated') {
       s.ready = true; clearTimeout(s.timeout); syncTopic(s);
       s.stream.getAudioTracks().forEach(track => { track.enabled = !s.paused; });
-      state(s.paused ? 'Paused' : 'Listening', s.paused ? 'LISTEN resumes this conversation.' : 'Listening through this phone’s microphone.');
+      state(s.paused ? 'Paused' : 'Listening', s.paused ? '' : '');
     } else if (type === 'conversation.item.input_audio_transcription.delta') {
       inputs.set(event.item_id, (inputs.get(event.item_id) || '') + event.delta); render();
     } else if (type === 'conversation.item.input_audio_transcription.completed') {
@@ -120,7 +120,7 @@
     if (!active.paused) return pause();
     syncTopic(active); active.paused = false;
     active.stream.getAudioTracks().forEach(track => { track.enabled = true; });
-    state('Listening', 'Continuing the same conversation.');
+    state('Listening', '');
   });
   topic.addEventListener('change', () => syncTopic(active));
   el('phoneListenReset').addEventListener('click', () => { end(); inputs.clear(); replies.clear(); render(); });
@@ -131,6 +131,6 @@
   if (!supported()) state('Unavailable', 'Open this app over HTTPS in a browser that supports microphone access.');
   else fetch('/api/health').then(r => { if (!r.ok) throw Error(); return r.json(); }).then(data => {
     configured = data.configured === true;
-    state(configured ? 'Ready' : 'Unavailable', configured ? 'Uses this phone’s microphone. Press LISTEN when you are ready.' : 'AI is not configured on the server. Contact the app owner.');
+    state(configured ? 'Ready' : 'Unavailable', configured ? '' : 'AI is not configured on the server. Contact the app owner.');
   }).catch(() => state('Offline', 'Could not reach the server. Check your connection and reload.'));
 })();
