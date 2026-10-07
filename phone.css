@@ -65,3 +65,42 @@
  #phoneListenReset{width:100%;min-height:44px;margin-top:8px}
  .phone-answer{border-color:#347589}.phone-answer label{color:#8eebcf}
 }
+/* Single mobile layout; theme tokens never affect desktop. */
+#phonePreferences{width:min(90vw,420px);border:1px solid #596071;border-radius:20px;padding:24px;background:#10131b;color:#f5f6fc}
+#phonePreferences::backdrop{background:#0009}#phonePreferences label{display:block;margin-bottom:12px}#phonePreferences select{width:100%;margin-bottom:18px;padding:12px}#phonePreferences button{margin:8px 8px 0 0}
+@media(max-width:600px){
+ body{--neon:#ff526f;--neon-rgb:255,82,111;--surface:#11121bcc;--line:rgba(var(--neon-rgb),.32);background:#08090f;color:#f4f4fa}
+ body[data-phone-theme='blue']{--neon:#58a6ff;--neon-rgb:88,166,255}
+ body[data-phone-theme='green']{--neon:#48e6aa;--neon-rgb:72,230,170}
+ .app-bg{background:radial-gradient(ellipse at 80% 0,rgba(var(--neon-rgb),.09),transparent 60%)}
+ .topbar{background:#0b0c13f5;position:relative;top:auto;padding:18px 16px;min-height:80px;border-color:var(--line);justify-content:space-between}
+ .brand-wrap{min-width:0;gap:10px}.brand-mark{color:var(--neon);border-color:var(--neon);background:rgba(var(--neon-rgb),.08);box-shadow:0 0 14px rgba(var(--neon-rgb),.12)}
+ .phone-brand{font-size:20px;white-space:nowrap}#phoneSettings{display:grid;place-items:center;padding:10px;min-width:44px;min-height:44px;margin-left:10px;border-color:var(--line)}
+ svg{width:22px;height:22px;flex-shrink:0}#phoneSettings svg{width:24px;height:24px}
+ #phoneNav{position:relative;top:auto;background:#0d0e16;border-color:var(--line);padding:8px 12px;gap:5px}
+ #phoneNav button{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;font-size:11px;padding:9px 2px;color:#aeb1c3;min-height:62px}
+ #phoneNav button[aria-current='page']{color:var(--neon);background:rgba(var(--neon-rgb),.1);box-shadow:inset 0 -2px var(--neon)}
+ #phoneHome,#phoneListen{max-width:600px;margin:auto;padding:20px 16px}.phone-actions{display:none}
+ #phoneQuick,.glass-card,.phone-listen-card{background:var(--surface);border-color:var(--line);box-shadow:0 8px 26px #0003;border-radius:18px}
+ #phoneQuick{padding:16px;display:grid;grid-template-columns:24px minmax(0,1fr);gap:12px;align-items:center}
+ .phone-link-icon{color:var(--neon)}#phoneQuick .quick-link-wrap{min-width:0}#phoneQuick #quickLink{min-height:48px;padding:12px;font-size:16px;background:#191b27;border:1px solid #393c4e;color:white}
+ #phoneSave{grid-column:1/-1;margin:0;min-height:46px}#quickLinkStatus{grid-column:1/-1;margin:0}#phoneTarget{font-size:13px;margin:10px 4px 18px}
+ #phoneBubble,#phoneInstall,#phoneBrowse{padding:18px;margin:16px 0}#phoneHome h2{font-size:18px;margin:0 0 14px;font-weight:700}
+ .phone-card-heading{display:flex;gap:12px;align-items:center}.phone-card-heading svg{color:var(--neon)}#phoneHome .phone-card-heading h2{margin:0;flex:1}
+ #phoneBubbleToggle{min-width:66px;min-height:40px;display:grid;place-items:center;text-decoration:none}#phoneBubbleToggle[aria-checked='true']{background:var(--neon);color:#08090f;box-shadow:0 0 12px rgba(var(--neon-rgb),.25)}
+ #phoneBubbleStatus{color:var(--neon);font-size:13px;margin-bottom:0}.phone-muted{color:#b2b6c8}
+ #phoneBrowseCategory,#phoneTheme{width:100%;background:#191b27;color:#f4f4fa;border:1px solid var(--line);padding:12px;border-radius:10px;font:inherit;margin:8px 0 14px}
+ #phoneBrowseTitles{max-height:300px;overflow:auto;display:flex;flex-direction:column;gap:8px}
+ .phone-browse-title{display:block;width:100%;min-width:0;flex-shrink:0;min-height:46px;padding:12px;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border:1px solid var(--line);border-radius:10px;background:#151720;color:#f4f4fa;font-size:15px;cursor:pointer}
+ .save-btn{background:var(--neon);border-color:var(--neon);color:#090b11;box-shadow:0 3px 12px rgba(var(--neon-rgb),.12)}
+ .small-btn,.mini-add,.item-rename,.phone-item-actions button{background:#171922;color:var(--neon);border-color:var(--line)}
+ .part-item.active,.part-item:hover,#itemList .library-title-card.active{background:rgba(var(--neon-rgb),.09);border-color:var(--neon)}
+ .eyebrow,.section-label,.part-icon,.chev,.category-settings-btn{color:var(--neon)}
+ input:focus,textarea:focus,select:focus{border-color:var(--neon);box-shadow:0 0 0 2px rgba(var(--neon-rgb),.12)}
+ button:focus-visible,a:focus-visible{outline:2px solid var(--neon)}input[type='checkbox']{accent-color:var(--neon)}
+ .phone-play{background:var(--neon);color:#08090f}.phone-answer label,#phoneListenStatus{color:var(--neon)}.phone-listen-card input,.phone-listen-card textarea{background:#11131e;border-color:var(--line)}
+ #phoneListenToggle[aria-pressed='true']{background:rgba(var(--neon-rgb),.2);border-color:var(--neon);color:var(--neon)}
+ #phonePreferences,#phoneCategorySheet{background:#10121c;border-color:var(--line)}
+ .phone-browse-title,button,a{transition:background-color .15s,border-color .15s}
+}
+@media(prefers-reduced-motion:reduce){.phone-browse-title,button,a{transition:none}}
