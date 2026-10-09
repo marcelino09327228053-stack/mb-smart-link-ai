@@ -2,7 +2,7 @@
 (() => {
   'use strict';
   const el = id => document.getElementById(id);
-  const toggle = el('phoneListenToggle'), topic = el('phoneTopic');
+  const toggle = el('phoneListenToggle'), topic = el('phoneTopic'), behavior = el('phoneBehavior');
   if (!toggle) return;
   const status = el('phoneListenStatus'), detail = el('phoneListenDetail');
   const transcript = el('phoneTranscript'), answer = el('phoneAnswer');
@@ -32,6 +32,11 @@
   function send(s, event) { if (s === active && s.dc?.readyState === 'open') s.dc.send(JSON.stringify(event)); }
   function syncTopic(s) {
     if (!s?.ready || s !== active || s.dc.readyState !== 'open') return;
+    const custom = behavior?.value?.trim() || '';
+    if(custom !== s.behavior){
+      send(s,{type:'conversation.item.create',item:{type:'message',role:'system',content:[{type:'input_text',text:'Response instructions updated by the app user. Replace earlier custom response instructions with: '+JSON.stringify(custom || 'Use the default direct first-person answer style, with enough detail to fully answer the question.')+'. Apply to future answers; preserve conversation context.'}]}});
+      s.behavior=custom;
+    }
     const value = topic.value.trim();
     if (value === s.topic) return;
     send(s, {type:'conversation.item.create', item:{type:'message', role:'system', content:[{
@@ -103,9 +108,10 @@
       const offer = await s.pc.createOffer(); if (active !== s) return;
       await s.pc.setLocalDescription(offer); if (active !== s) return;
       s.topic = topic.value.trim();
+      s.behavior = behavior?.value?.trim() || '';
       const result = await fetch('/api/session', {
         method:'POST', headers:{'Content-Type':'application/json'}, signal:s.abort.signal,
-        body:JSON.stringify({sdp:offer.sdp, settings:{source:'phone',topic:s.topic,mode:'text',language:'same'}})
+        body:JSON.stringify({sdp:offer.sdp, settings:{source:'phone',topic:s.topic,behavior:s.behavior,mode:'text',language:'same'}})
       });
       if (!result.ok) { const problem = await result.json().catch(() => ({})); throw Error(problem.error || 'Unable to connect. Sign in and try again.'); }
       const sdp = await result.text(); if (active !== s) return;
@@ -123,6 +129,7 @@
     state('Listening', '');
   });
   topic.addEventListener('change', () => syncTopic(active));
+  behavior?.addEventListener('change', () => syncTopic(active));
   el('phoneListenReset').addEventListener('click', () => { end(); inputs.clear(); replies.clear(); render(); });
   document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
   window.addEventListener('pagehide', () => end('Session closed. Press LISTEN to reconnect.'));

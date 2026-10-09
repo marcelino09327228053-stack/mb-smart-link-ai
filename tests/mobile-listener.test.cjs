@@ -34,7 +34,7 @@ test('phone uses only microphone and same-origin backend with topic; pause/resum
  const h=await harness();await h.begin();
  assert.equal(h.micRequests,1);assert.equal(h.tracks[0].enabled,false);
  const request=h.requests.find(r=>r.url==='/api/session');
- assert.deepEqual(JSON.parse(request.request.body).settings,{source:'phone',topic:'Panel Beater Job Interview',mode:'text',language:'same'});
+ assert.deepEqual(JSON.parse(request.request.body).settings,{source:'phone',topic:'Panel Beater Job Interview',behavior:'',mode:'text',language:'same'});
  assert.deepEqual(Object.keys(request.request.headers),['Content-Type']);
  h.event({type:'session.created'});assert.equal(h.tracks[0].enabled,true);
  h.event({type:'conversation.item.input_audio_transcription.delta',item_id:'one',delta:'Tell me '});
@@ -98,4 +98,13 @@ test('PAUSE returns LISTEN synchronously while an answer is processing, without 
  h.event({type:'response.output_text.delta',response_id:'r',delta:'Answer'});
  assert.equal(h.el('phoneListenToggle').textContent,'LISTEN');
  assert.equal(h.requests.filter(r=>r.url==='/api/session').length,1);
+});
+
+test('custom response instructions reach initial session and update or clear without reconnecting',async()=>{
+ const h=await harness();h.el('phoneBehavior').value='Give a detailed first-person answer';await h.begin();
+ assert.equal(JSON.parse(h.requests.find(r=>r.url==='/api/session').request.body).settings.behavior,'Give a detailed first-person answer');
+ h.event({type:'session.created'});h.el('phoneBehavior').value='Use Tagalog with an example';h.el('phoneBehavior').handlers.change();
+ assert.match(h.peers[0].dc.sent.at(-1).item.content[0].text,/Use Tagalog with an example/);
+ h.el('phoneBehavior').value='';h.el('phoneBehavior').handlers.change();
+ assert.match(h.peers[0].dc.sent.at(-1).item.content[0].text,/default direct first-person/);assert.equal(h.peers.length,1);
 });
