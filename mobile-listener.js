@@ -7,7 +7,7 @@
   const status = el('phoneListenStatus'), detail = el('phoneListenDetail');
   const transcript = el('phoneTranscript'), answer = el('phoneAnswer');
   const inputs = new Map(), replies = new Map();
-  let active = null, configured = false;
+  let active = null, configured = false, liveTransport = false;
   const supported = () => window.isSecureContext && !!window.RTCPeerConnection && !!navigator.mediaDevices?.getUserMedia;
   const stopTracks = stream => stream?.getTracks().forEach(track => track.stop());
   function controls() {
@@ -38,12 +38,16 @@
     const s = active; active = null;
     if (s) {
       clearTimeout(s.timeout); s.abort.abort(); stopTracks(s.stream);
+      s.live?.close();
       s.dc?.close(); s.pc?.close();
     }
     state(label, message);
   }
   function send(s, event) { if (s === active && s.dc?.readyState === 'open') s.dc.send(JSON.stringify(event)); }
+  const liveSettings=()=>({source:'phone',mode:'text',topic:topic.value.trim(),behavior:behavior?.value?.trim()||'',language:language?.value||'same'});
   function syncTopic(s) {
+    if(s?.live&&s===active){const next=liveSettings(),signature=JSON.stringify(next);if(signature!==s.liveSignature){s.liveSignature=signature;s.live.update(next);}return;}
+
     if (!s?.ready || s !== active || s.dc.readyState !== 'open') return;
     const selected = language?.value || 'same';
     const languageRule = selected === 'same' ? 'Reply in the language of the most recent speaker.' : 'Reply in '+selected+'.';
@@ -64,12 +68,14 @@
     const s = active;
     if (!s) return;
     s.paused = true;
+    s.live?.pause();
     s.stream?.getAudioTracks().forEach(track => { track.enabled = false; });
     state('Paused', '');
   }
   function handle(s, event) {
     if (s !== active) return;
     const type = event.type;
+    if(type === 'transport.reconnecting'){s.ready=false;s.stream?.getAudioTracks().forEach(t=>t.enabled=false);state('Connecting','Reconnecting audio. Please wait, then repeat any interrupted question.');return;}
     if (type === 'session.created' || type === 'session.updated') {
       s.ready = true; clearTimeout(s.timeout); syncTopic(s);
       s.stream.getAudioTracks().forEach(track => { track.enabled = !s.paused; });
@@ -94,7 +100,7 @@
       if (event.response?.status === 'failed') { end('AI could not complete the answer. Check the connection or account quota, then retry.', 'Error'); return; }
       state(s.paused ? 'Paused' : 'Listening', s.paused ? 'LISTEN resumes this conversation.' : 'Ready for the next part of the conversation.');
     } else if (type === 'error') {
-      end('The AI session reported an error. Press LISTEN to reconnect.', 'Error');
+      end(s.live && event.message ? event.message : 'The AI session reported an error. Press LISTEN to reconnect.', 'Error');
     }
   }
   async function begin() {
@@ -112,6 +118,11 @@
         track.enabled = false; // No audio leaves while the secure session is connecting.
         track.addEventListener('ended', () => { if (active === s) end('Microphone disconnected. Press LISTEN to reconnect.', 'Error'); });
       });
+      if(liveTransport && window.MBLive){
+        const settings=liveSettings();s.liveSignature=JSON.stringify(settings);
+        s.live=await window.MBLive.connect({stream,settings,signal:s.abort.signal,onEvent:event=>handle(s,event)});
+        if(active!==s){s.live.close();return;}syncTopic(s);if(s.paused)s.live.pause();return;
+      }
       s.pc = new RTCPeerConnection();
       tracks.forEach(track => s.pc.addTrack(track, stream));
       s.pc.onconnectionstatechange = () => {
@@ -141,7 +152,7 @@
     if (!active) return begin();
     if (!active.ready) return;
     if (!active.paused) return pause();
-    syncTopic(active); active.paused = false;
+    syncTopic(active); active.paused = false;active.live?.resume();
     active.stream.getAudioTracks().forEach(track => { track.enabled = true; });
     state('Listening', '');
   });
@@ -155,7 +166,8 @@
   controls();
   if (!supported()) state('Unavailable', 'Open this app over HTTPS in a browser that supports microphone access.');
   else fetch('/api/health').then(r => { if (!r.ok) throw Error(); return r.json(); }).then(data => {
-    configured = data.configured === true;
+    liveTransport = data.liveTransport === true;
+    configured = data.phoneConfigured === true || data.configured === true;
     state(configured ? 'Ready' : 'Unavailable', configured ? '' : 'AI is not configured on the server. Contact the app owner.');
   }).catch(() => state('Offline', 'Could not reach the server. Check your connection and reload.'));
 })();

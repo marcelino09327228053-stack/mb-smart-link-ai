@@ -8,7 +8,7 @@ if(require.main===module)try{
   const env=require('node:util').parseEnv(
     require('node:fs').readFileSync(path.join(__dirname,'.env'),'utf8')
   );
-  for(const name of ['OPENAI_API_KEY','OPENAI_REALTIME_MODEL','PORT','AUDIO_HELPER_PORT','DEV_SAMPLE_LOGIN','PUBLIC_ORIGIN','DATABASE_URL','NODE_ENV','PGHOST','PGPORT','PGDATABASE','PGUSER','PGPASSWORD','EMAIL_PROVIDER','RESEND_API_KEY','RESEND_FROM_EMAIL']){
+  for(const name of ['GEMINI_API_KEY','GEMINI_LIVE_MODEL','OPENAI_API_KEY','OPENAI_REALTIME_MODEL','PORT','AUDIO_HELPER_PORT','DEV_SAMPLE_LOGIN','PUBLIC_ORIGIN','DATABASE_URL','NODE_ENV','PGHOST','PGPORT','PGDATABASE','PGUSER','PGPASSWORD','EMAIL_PROVIDER','RESEND_API_KEY','RESEND_FROM_EMAIL']){
     // Local key replacement must not be shadowed by a stale Windows user key.
     // Production hosting continues to prioritize its injected environment.
     if(env[name]?.trim()&&(process.env[name]===undefined||
@@ -34,6 +34,8 @@ function getLibrary(){
 
 // Explicit allowlist: never serve .env, backend code, tests, or repository files.
 const assets = new Map([
+  ['/live-transport.js', ['live-transport.js','text/javascript']],
+  ['/live-capture-worklet.js', ['live-capture-worklet.js','text/javascript']],
   ['/listen-auth.js', ['listen-auth.js','text/javascript']],
   ['/mobile-listener.js', ['mobile-listener.js','text/javascript']],
   ['/pwa.js', ['pwa.js','text/javascript']],
@@ -55,7 +57,7 @@ const assets = new Map([
   ['/pc-audio-sources.js', ['pc-audio-sources.js', 'text/javascript']],
   ['/helper-audio-worklet.js', ['helper-audio-worklet.js', 'text/javascript']]
 ]);
-function createServer({ apiKey = process.env.OPENAI_API_KEY, model = process.env.OPENAI_REALTIME_MODEL || 'gpt-realtime', fetchImpl = fetch, emailFetch = fetch } = {}) {
+function createServer({ apiKey = process.env.OPENAI_API_KEY, model = process.env.OPENAI_REALTIME_MODEL || 'gpt-realtime', fetchImpl = fetch, emailFetch = fetch, geminiKey = process.env.GEMINI_API_KEY, geminiModel = process.env.GEMINI_LIVE_MODEL, liveConnect } = {}) {
   let pending = 0;
   const overlay=require('./server/overlay.cjs').overlayBridge();
   const mail=require('./server/email.cjs').emailDelivery({fetchImpl:emailFetch});
@@ -193,7 +195,7 @@ function createServer({ apiKey = process.env.OPENAI_API_KEY, model = process.env
       }catch(e){return send(400,{error:e.message||'Could not save link.'})}
     }
 
-    if (req.method === 'GET' && pathname === '/api/health') return send(200, { configured: !!apiKey, model });
+    if (req.method === 'GET' && pathname === '/api/health') return send(200, { configured: !!apiKey, phoneConfigured: !!(apiKey || geminiKey), liveTransport: !!geminiKey, model });
     if (req.method === 'GET' && pathname === '/api/helper/status') return isLocal?send(200, await helperStatus()):send(403,{error:'PC helper is local only.'});
     if (req.method === 'GET' && pathname === '/api/video-title') {
       const url = new URL(req.url, `http://${expectedHost}`).searchParams.get('url');
@@ -262,6 +264,7 @@ function createServer({ apiKey = process.env.OPENAI_API_KEY, model = process.env
     if(!res.headersSent){res.writeHead(503,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify({error:'Service temporarily unavailable. Please try again.'}))}
     else res.destroy();
   })});
+  require('./server/live.cjs').attachLive(server,{auth,publicOrigin,apiKey,model,geminiKey,geminiModel,connect:liveConnect});
   server.on('close',()=>overlay.stop());
   return server;
 }
