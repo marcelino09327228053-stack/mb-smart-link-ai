@@ -2,7 +2,7 @@ process.env.MB_AUTH_DB=':memory:';process.env.MB_LIBRARY_DB=':memory:';delete pr
 const {chromium}=require('playwright'),assert=require('node:assert/strict'),{EventEmitter}=require('node:events');const {createServer}=require('../server.cjs');
 (async()=>{
  const peers=[];let frames=0;
- const server=createServer({apiKey:'test-only',geminiKey:'test-only',liveConnect:()=>{
+ const server=createServer({liveRelay:true,apiKey:'test-only',geminiKey:'test-only',liveConnect:()=>{
   const p=new EventEmitter();Object.assign(p,{readyState:1,bufferedAmount:0,send(raw){const m=JSON.parse(raw);if(m.setup)setImmediate(()=>p.emit('message',JSON.stringify({setupComplete:{}})));if(m.realtimeInput?.audio){frames++;if(!p.answered){p.answered=true;p.emit('message',JSON.stringify({serverContent:{inputTranscription:{text:'Test question'},outputTranscription:{text:'Test answer'},turnComplete:true}}));}}},terminate(){p.terminated=true;}});peers.push(p);setImmediate(()=>p.emit('open'));return p;
  }});
  await new Promise(r=>server.listen(0,'127.0.0.1',r));

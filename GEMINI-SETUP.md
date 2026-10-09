@@ -1,3 +1,10 @@
+# Status: disabled in production
+
+Phone AI Listen has been restored to direct OpenAI WebRTC for latency.
+Gemini relay code is retained for isolated testing only (createServer liveRelay option).
+A configured GEMINI_API_KEY does not enable the relay in production.
+The notes below describe the optional test integration.
+
 # Phone AI Listen: Gemini primary
 
 Render Environment:

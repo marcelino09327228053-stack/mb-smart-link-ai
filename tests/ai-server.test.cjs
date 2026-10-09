@@ -102,3 +102,10 @@ test('phone session uses conversation suggestions while desktop defaults stay un
 });
 
 test('phone topic accepts long context while desktop validation stays unchanged',()=>{const topic='Context '.repeat(3000);assert.ok(sessionConfig({source:'phone',topic}).instructions.includes(topic.trim()));assert.throws(()=>sessionConfig({topic}));});
+
+test('production default keeps direct OpenAI WebRTC even when Gemini key is configured',async()=>{
+ await withServer({apiKey:'test-openai',geminiKey:'test-gemini'},async base=>{
+  const health=await fetch(base+'/api/health').then(r=>r.json());
+  assert.equal(health.liveTransport,false);assert.equal(health.phoneConfigured,true);
+ });
+});
