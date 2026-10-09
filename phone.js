@@ -15,6 +15,7 @@
  listener.setAttribute('aria-labelledby','phoneListenTitle');
  listener.innerHTML=`<div class="phone-listen-heading"><h1 id="phoneListenTitle">AI Listen</h1></div><div class="phone-listen-card"><label>Topic</label><input id="phoneTopic" type="hidden"><button id="phoneTopicOpen" class="small-btn" type="button"><span>Add / Edit Topic</span><span id="phoneTopicSummary" class="phone-setting-status">Not set</span></button><input id="phoneBehavior" type="hidden"><button id="phoneBehaviorOpen" class="small-btn" type="button"><span>Response Instructions</span><span id="phoneBehaviorSummary" class="phone-setting-status">Not set</span></button><label for="phoneLanguage">Answer Language</label><select id="phoneLanguage"><option value="same">Same as speaker</option><option value="English">English</option><option value="Tagalog">Tagalog</option></select><button id="phoneListenToggle" class="save-btn" type="button" aria-pressed="false" disabled>LISTEN</button><p id="phoneListenStatus" role="status" aria-live="polite">Ready</p><p id="phoneListenDetail" class="phone-muted"></p><button id="phoneListenReset" class="small-btn" type="button">Clear / Reset conversation</button></div><div class="phone-listen-card"><label for="phoneTranscript">Live Transcript</label><textarea id="phoneTranscript" rows="2" readonly placeholder="The conversation will appear here..."></textarea></div><div class="phone-listen-card phone-answer"><label for="phoneAnswer">AI Suggested Answer</label><div id="phoneAnswer" role="region" aria-label="AI Suggested Answer" tabindex="0"></div></div>`;
  home.after(listener);
+ function savedBadge(id,value){const badge=$(id);const saved=!!value.trim();badge.textContent=saved?'Saved':'Not set';badge.classList.toggle('is-saved',saved);}
  const listenSettingsKey='mb_phone_listen_settings_v1';
  const settingsNotice=document.createElement('p');settingsNotice.setAttribute('role','status');settingsNotice.id='phoneSettingsNotice';$('phoneLanguage').after(settingsNotice);
  function saveListenSetting(name,value){
@@ -26,8 +27,8 @@
  }
  try{
   const saved=JSON.parse(localStorage.getItem(listenSettingsKey)||'{}');
-  if(typeof saved.topic==='string'){$('phoneTopic').value=saved.topic;$('phoneTopicSummary').textContent=saved.topic.trim()?'Saved':'Not set';}
-  if(typeof saved.behavior==='string'){$('phoneBehavior').value=saved.behavior.slice(0,20000);$('phoneBehaviorSummary').textContent=$('phoneBehavior').value.trim()?'Saved':'Not set';}
+  if(typeof saved.topic==='string'){$('phoneTopic').value=saved.topic;savedBadge('phoneTopicSummary',saved.topic);}
+  if(typeof saved.behavior==='string'){$('phoneBehavior').value=saved.behavior.slice(0,20000);savedBadge('phoneBehaviorSummary',$('phoneBehavior').value);}
   if(['same','English','Tagalog'].includes(saved.language))$('phoneLanguage').value=saved.language;
  }catch{settingsNotice.textContent='Saved settings could not be loaded. Please save them again.';}
  $('phoneLanguage').addEventListener('change',()=>saveListenSetting('language',$('phoneLanguage').value));
@@ -38,14 +39,14 @@
  body.append(topicEditor);
  $('phoneTopicOpen').onclick=()=>{$('phoneTopicDraft').value=$('phoneTopic').value;topicEditor.showModal();};
  $('phoneTopicCancel').onclick=()=>topicEditor.close();
- topicEditor.querySelector('form').onsubmit=e=>{e.preventDefault();const value=$('phoneTopicDraft').value;if(!saveListenSetting('topic',value))return;$('phoneTopic').value=value;$('phoneTopicSummary').textContent=value.trim()?'Saved':'Not set';$('phoneTopic').dispatchEvent(new Event('change',{bubbles:true}));topicEditor.close();};
+ topicEditor.querySelector('form').onsubmit=e=>{e.preventDefault();const value=$('phoneTopicDraft').value;if(!saveListenSetting('topic',value))return;$('phoneTopic').value=value;savedBadge('phoneTopicSummary',value);$('phoneTopic').dispatchEvent(new Event('change',{bubbles:true}));topicEditor.close();};
  const behaviorEditor=document.createElement('dialog');behaviorEditor.id='phoneBehaviorEditor';
  behaviorEditor.setAttribute('aria-labelledby','phoneBehaviorEditorTitle');
  behaviorEditor.innerHTML=`<form><h2 id="phoneBehaviorEditorTitle">Instructions</h2><label for="phoneBehaviorDraft">How should the AI answer? (up to 20,000 characters)</label><textarea id="phoneBehaviorDraft" rows="16" maxlength="20000" placeholder="Example: Answer as me, in English. Give a detailed answer with an example. No greetings."></textarea><div class="phone-sheet-actions"><button id="phoneBehaviorCancel" class="small-btn" type="button">Back</button><button class="save-btn" type="submit">Save Instructions</button></div></form>`;
  body.append(behaviorEditor);
  $('phoneBehaviorOpen').onclick=()=>{$('phoneBehaviorDraft').value=$('phoneBehavior').value;behaviorEditor.showModal();};
  $('phoneBehaviorCancel').onclick=()=>behaviorEditor.close();
- behaviorEditor.querySelector('form').onsubmit=e=>{e.preventDefault();const value=$('phoneBehaviorDraft').value;if(!saveListenSetting('behavior',value))return;$('phoneBehavior').value=value;$('phoneBehaviorSummary').textContent=value.trim()?'Saved':'Not set';$('phoneBehavior').dispatchEvent(new Event('change',{bubbles:true}));behaviorEditor.close();};
+ behaviorEditor.querySelector('form').onsubmit=e=>{e.preventDefault();const value=$('phoneBehaviorDraft').value;if(!saveListenSetting('behavior',value))return;$('phoneBehavior').value=value;savedBadge('phoneBehaviorSummary',value);$('phoneBehavior').dispatchEvent(new Event('change',{bubbles:true}));behaviorEditor.close();};
 
  // Move the same control, retaining its auth gate and microphone handlers.
  const control=document.getElementById('phoneListenToggle');

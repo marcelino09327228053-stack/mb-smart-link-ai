@@ -136,3 +136,9 @@
 #phoneTopicOpen,#phoneBehaviorOpen{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
 #phoneTopicOpen .phone-setting-status,#phoneBehaviorOpen .phone-setting-status{flex-shrink:0;font-size:12px;font-weight:400;white-space:nowrap;color:#b2b6c8;text-transform:none}
 #phoneSettingsNotice:empty{display:none}
+
+#phoneTopicOpen .phone-setting-status.is-saved,#phoneBehaviorOpen .phone-setting-status.is-saved{color:#69f0a6;font-weight:600;text-shadow:0 0 8px #38e88b80}
+@media(max-width:600px), (max-width:1200px) and (max-height:600px) and (hover:none) and (pointer:coarse){
+ #phoneListenToggle,#phoneListenToggle[aria-pressed='true'],#phoneListenToggle.phone-listen-dragged{width:max-content;min-width:0;min-height:0;padding:8px 10px;font-size:14px;line-height:1.2;border-radius:8px;background:transparent;border:1px solid var(--neon);color:var(--neon);box-shadow:none;backdrop-filter:none;touch-action:none}
+ #phoneListenToggle[aria-pressed='true']{border-color:#69f0a6;color:#69f0a6}
+}
