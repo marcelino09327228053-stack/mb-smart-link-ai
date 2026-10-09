@@ -108,3 +108,12 @@ test('custom response instructions reach initial session and update or clear wit
  h.el('phoneBehavior').value='';h.el('phoneBehavior').handlers.change();
  assert.match(h.peers[0].dc.sent.at(-1).item.content[0].text,/default direct first-person/);assert.equal(h.peers.length,1);
 });
+
+test('selected answer language reaches session and live changes override custom prompt language',async()=>{
+ const h=await harness();h.el('phoneLanguage').value='Tagalog';h.el('phoneBehavior').value='Answer in English';await h.begin();
+ assert.equal(JSON.parse(h.requests.find(r=>r.url==='/api/session').request.body).settings.language,'Tagalog');
+ h.event({type:'session.created'});h.el('phoneLanguage').value='English';h.el('phoneLanguage').handlers.change();
+ assert.match(h.peers[0].dc.sent.at(-1).item.content[0].text,/Reply in English/);
+ h.el('phoneBehavior').value='Use Tagalog';h.el('phoneBehavior').handlers.change();
+ assert.match(h.peers[0].dc.sent.at(-1).item.content[0].text,/Reply in English/);
+});

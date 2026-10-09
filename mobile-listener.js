@@ -2,7 +2,7 @@
 (() => {
   'use strict';
   const el = id => document.getElementById(id);
-  const toggle = el('phoneListenToggle'), topic = el('phoneTopic'), behavior = el('phoneBehavior');
+  const toggle = el('phoneListenToggle'), topic = el('phoneTopic'), behavior = el('phoneBehavior'), language = el('phoneLanguage');
   if (!toggle) return;
   const status = el('phoneListenStatus'), detail = el('phoneListenDetail');
   const transcript = el('phoneTranscript'), answer = el('phoneAnswer');
@@ -16,10 +16,23 @@
     toggle.setAttribute('aria-pressed', String(!!active?.ready && !active.paused));
   }
   function state(label, message) { status.textContent = label; if (message !== undefined) detail.textContent = message; controls(); }
+  const answerBlocks = new Map();
   function render() {
     transcript.value = [...inputs.values()].filter(Boolean).join('\n\n');
     answer.value = [...replies.values()].filter(Boolean).join('\n\n');
-    transcript.scrollTop = transcript.scrollHeight; answer.scrollTop = answer.scrollHeight;
+    transcript.scrollTop = transcript.scrollHeight;
+    if (answer.append && document.createElement) {
+      const savedScroll=answer.scrollTop;let newest=null;
+      for(const [id,text] of replies){
+        if(!text)continue;
+        let block=answerBlocks.get(id);
+        if(!block){block=document.createElement('div');block.className='phone-answer-turn';answerBlocks.set(id,block);answer.append(block);newest=block;}
+        if(block.textContent!==text)block.textContent=text;
+      }
+      if(!replies.size){answer.replaceChildren();answerBlocks.clear();answer.scrollTop=0;}
+      else if(newest)answer.scrollTop=newest.offsetTop-(answer.firstElementChild?.offsetTop || 0);
+      else answer.scrollTop=savedScroll;
+    }
   }
   function end(message = 'Conversation cleared. Press LISTEN to start fresh.', label = 'Ready') {
     const s = active; active = null;
@@ -32,9 +45,12 @@
   function send(s, event) { if (s === active && s.dc?.readyState === 'open') s.dc.send(JSON.stringify(event)); }
   function syncTopic(s) {
     if (!s?.ready || s !== active || s.dc.readyState !== 'open') return;
+    const selected = language?.value || 'same';
+    const languageRule = selected === 'same' ? 'Reply in the language of the most recent speaker.' : 'Reply in '+selected+'.';
+    if(selected !== s.language){send(s,{type:'conversation.item.create',item:{type:'message',role:'system',content:[{type:'input_text',text:'Answer language selection updated: '+languageRule+' This selection overrides language requests in Response Instructions. Answer the question; do not merely translate it.'}]}});s.language=selected;}
     const custom = behavior?.value?.trim() || '';
     if(custom !== s.behavior){
-      send(s,{type:'conversation.item.create',item:{type:'message',role:'system',content:[{type:'input_text',text:'Response instructions updated by the app user. Replace earlier custom response instructions with: '+JSON.stringify(custom || 'Use the default direct first-person answer style, with enough detail to fully answer the question.')+'. Apply to future answers; preserve conversation context.'}]}});
+      send(s,{type:'conversation.item.create',item:{type:'message',role:'system',content:[{type:'input_text',text:'Response instructions updated by the app user. Replace earlier custom response instructions with: '+JSON.stringify(custom || 'Use the default direct first-person answer style, with enough detail to fully answer the question.')+'. Apply to future answers; preserve conversation context. '+languageRule+' The language selector overrides any language in these instructions.'}]}});
       s.behavior=custom;
     }
     const value = topic.value.trim();
@@ -109,9 +125,10 @@
       await s.pc.setLocalDescription(offer); if (active !== s) return;
       s.topic = topic.value.trim();
       s.behavior = behavior?.value?.trim() || '';
+      s.language = language?.value || 'same';
       const result = await fetch('/api/session', {
         method:'POST', headers:{'Content-Type':'application/json'}, signal:s.abort.signal,
-        body:JSON.stringify({sdp:offer.sdp, settings:{source:'phone',topic:s.topic,behavior:s.behavior,mode:'text',language:'same'}})
+        body:JSON.stringify({sdp:offer.sdp, settings:{source:'phone',topic:s.topic,behavior:s.behavior,mode:'text',language:s.language}})
       });
       if (!result.ok) { const problem = await result.json().catch(() => ({})); throw Error(problem.error || 'Unable to connect. Sign in and try again.'); }
       const sdp = await result.text(); if (active !== s) return;
@@ -129,6 +146,7 @@
     state('Listening', '');
   });
   topic.addEventListener('change', () => syncTopic(active));
+  language?.addEventListener('change', () => syncTopic(active));
   behavior?.addEventListener('change', () => syncTopic(active));
   el('phoneListenReset').addEventListener('click', () => { end(); inputs.clear(); replies.clear(); render(); });
   document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
