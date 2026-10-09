@@ -119,3 +119,11 @@
  #phoneTopic{width:100%;font-size:16px;min-height:48px}
  #phoneAnswer{min-height:480px;height:70dvh}
 }
+
+@media(max-width:600px){
+ #phoneTopicOpen{width:100%;min-height:48px;font-size:16px;text-align:left}
+ #phoneTopicSummary{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+ #phoneTopicEditor{box-sizing:border-box;width:calc(100% - 24px);max-width:560px;max-height:90dvh;padding:20px;background:#10121c;color:#f4f4fa;border:1px solid var(--line);border-radius:16px}
+ #phoneTopicEditor::backdrop{background:#0009}
+ #phoneTopicDraft{box-sizing:border-box;display:block;width:100%;height:55dvh;min-height:180px;margin:12px 0;background:#191b27;color:white;font:inherit;font-size:16px;line-height:1.5;padding:12px;border:1px solid var(--line);border-radius:10px}
+}

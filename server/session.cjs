@@ -2,7 +2,7 @@ const languages = new Set(['same', 'English', 'Tagalog']);
 const modes = new Set(['text', 'voice', 'both']);
 function sessionConfig(settings, model = 'gpt-realtime') {
   const { topic = '', behavior = '', language = 'same', mode = 'text', source = 'desktop' } = settings || {};
-  if (typeof topic !== 'string' || topic.length > 200 || typeof behavior !== 'string' || behavior.length > 20000 ||
+  if (typeof topic !== 'string' || (source !== 'phone' && topic.length > 200) || typeof behavior !== 'string' || behavior.length > 20000 ||
       !languages.has(language) || !modes.has(mode) || !['desktop', 'phone'].includes(source)) throw new Error('Invalid listener settings.');
   return {
     type: 'realtime', model,

@@ -100,3 +100,5 @@ test('phone session uses conversation suggestions while desktop defaults stay un
    assert.equal(manifest.display,'standalone');assert.equal(manifest.start_url,'/');assert.equal(manifest.scope,'/');
  });
 });
+
+test('phone topic accepts long context while desktop validation stays unchanged',()=>{const topic='Context '.repeat(3000);assert.ok(sessionConfig({source:'phone',topic}).instructions.includes(topic.trim()));assert.throws(()=>sessionConfig({topic}));});
