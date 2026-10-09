@@ -77,7 +77,7 @@
     }
   }
   async function begin() {
-    if (active || !configured || !supported() || !matchMedia('(max-width:600px)').matches) return;
+    if (active || !configured || !supported() || !matchMedia('(max-width:600px), (max-width:1200px) and (max-height:600px) and (hover:none) and (pointer:coarse)').matches) return;
     const s = {abort:new AbortController(), ready:false, paused:false}; active = s;
     state('Connecting', 'Allow microphone access on this phone.');
     s.timeout = setTimeout(() => { if (active === s) end('Connection timed out. Check your network and try again.', 'Error'); }, 45000);

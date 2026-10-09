@@ -73,6 +73,16 @@ const {createServer}=require('../server.cjs');
   fs.mkdirSync('artifacts/phone',{recursive:true});await page.screenshot({path:'artifacts/phone/home.png',fullPage:true});
   await page.locator('#phoneNav [data-view="library"]').click();await page.screenshot({path:'artifacts/phone/library.png',fullPage:true});
   for(const width of [360,390,600,768,1440]){await page.setViewportSize({width,height:900});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'overflow '+width)}
+  const touchPage=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
+  await touchPage.goto(page.url());await touchPage.locator('#phoneNav [data-view="listen"]').click();
+  for(const size of [{width:844,height:390},{width:960,height:432},{width:390,height:844}]){
+   await touchPage.setViewportSize(size);
+   assert.ok(await touchPage.locator('#phoneNav').isVisible(),'phone nav survives rotation');
+   assert.ok(await touchPage.locator('#phoneListen').isVisible(),'AI Listen survives rotation');
+   assert.equal(await touchPage.locator('.sidebar').isVisible(),false);
+   assert.ok(await touchPage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+  }
+  await touchPage.close();
   assert.equal(await page.locator('#phoneNav').isVisible(),false);assert.equal(await page.locator('.sidebar').isVisible(),true);assert.equal(await page.locator('#quickLink').isVisible(),true);
   await page.screenshot({path:'artifacts/phone/desktop.png',fullPage:true});assert.deepEqual(errors,[]);console.log('PASS phone navigation, category creation/counters, quick save, notes, auth, audio, responsive widths and desktop controls');
  }finally{await browser.close();await new Promise(r=>server.close(r))}

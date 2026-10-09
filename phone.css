@@ -3,7 +3,7 @@
 #phoneCategorySheet::backdrop{background:#02081499}
 #phoneCategorySheet label{display:block;margin:18px 0 8px}
 .phone-sheet-actions{display:flex;gap:12px;margin-top:24px}
-@media(max-width:600px){
+@media(max-width:600px), (max-width:1200px) and (max-height:600px) and (hover:none) and (pointer:coarse){
  body{font-size:16px;padding-bottom:calc(84px + env(safe-area-inset-bottom))}
  .phone-only{display:block}.phone-brand{font-weight:800;font-size:21px;color:#eaf2ff}
  .topbar{padding:18px 16px;min-height:80px}.brand-wrap>div:not(.brand-mark),.topbar-actions{display:none}
@@ -41,10 +41,10 @@
  button:disabled{opacity:.5}button:focus-visible,a:focus-visible{outline:2px solid #79bfff;outline-offset:3px}
 }
 
-@media(max-width:600px){.phone-install-link{display:inline-flex;align-items:center;min-height:48px;text-decoration:none}#hubList:empty::after{content:"No categories found.";padding:20px;color:#adc2dd}}
+@media(max-width:600px), (max-width:1200px) and (max-height:600px) and (hover:none) and (pointer:coarse){.phone-install-link{display:inline-flex;align-items:center;min-height:48px;text-decoration:none}#hubList:empty::after{content:"No categories found.";padding:20px;color:#adc2dd}}
 
 /* Phone-only listener and app navigation. Desktop rules remain untouched. */
-@media(max-width:600px){
+@media(max-width:600px), (max-width:1200px) and (max-height:600px) and (hover:none) and (pointer:coarse){
  .topbar{position:sticky;top:0;z-index:21;background:#07162a;padding-top:calc(14px + env(safe-area-inset-top))}
  .phone-brand{font-size:19px}.brand-wrap{gap:12px}
  #phoneNav{position:sticky;top:calc(80px + env(safe-area-inset-top));bottom:auto;padding:6px 10px;background:#0b1c32;border-top:0;border-bottom:1px solid #284563}
@@ -68,7 +68,7 @@
 /* Single mobile layout; theme tokens never affect desktop. */
 #phonePreferences{width:min(90vw,420px);border:1px solid #596071;border-radius:20px;padding:24px;background:#10131b;color:#f5f6fc}
 #phonePreferences::backdrop{background:#0009}#phonePreferences label{display:block;margin-bottom:12px}#phonePreferences select{width:100%;margin-bottom:18px;padding:12px}#phonePreferences button{margin:8px 8px 0 0}
-@media(max-width:600px){
+@media(max-width:600px), (max-width:1200px) and (max-height:600px) and (hover:none) and (pointer:coarse){
  body{--neon:#ff526f;--neon-rgb:255,82,111;--surface:#11121bcc;--line:rgba(var(--neon-rgb),.32);background:#08090f;color:#f4f4fa}
  body[data-phone-theme='blue']{--neon:#58a6ff;--neon-rgb:88,166,255}
  body[data-phone-theme='green']{--neon:#48e6aa;--neon-rgb:72,230,170}
@@ -105,14 +105,14 @@
 }
 @media(prefers-reduced-motion:reduce){.phone-browse-title,button,a{transition:none}}
 
-@media(max-width:600px){
+@media(max-width:600px), (max-width:1200px) and (max-height:600px) and (hover:none) and (pointer:coarse){
  #phoneTranscript{min-height:78px;height:90px;font-size:14px}
  #phoneAnswer{min-height:360px;height:52dvh;font-size:18px;line-height:1.6}
  #phoneListenDetail:empty{display:none}
  #phoneListenToggle{touch-action:manipulation}
 }
 
-@media(max-width:600px){
+@media(max-width:600px), (max-width:1200px) and (max-height:600px) and (hover:none) and (pointer:coarse){
  #phoneListen{position:relative}
  #phoneListenToggle{width:150px;min-height:52px;font-size:18px;touch-action:none;user-select:none}
  #phoneListenToggle.phone-listen-dragged{position:absolute;margin:0;z-index:10;box-shadow:0 3px 16px #0008}
@@ -120,7 +120,7 @@
  #phoneAnswer{min-height:480px;height:70dvh}
 }
 
-@media(max-width:600px){
+@media(max-width:600px), (max-width:1200px) and (max-height:600px) and (hover:none) and (pointer:coarse){
  #phoneTopicOpen{width:100%;min-height:48px;font-size:16px;text-align:left}
  #phoneTopicSummary{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
  #phoneTopicEditor{box-sizing:border-box;width:calc(100% - 24px);max-width:560px;max-height:90dvh;padding:20px;background:#10121c;color:#f4f4fa;border:1px solid var(--line);border-radius:16px}
