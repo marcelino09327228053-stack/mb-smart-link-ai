@@ -57,7 +57,7 @@ const assets = new Map([
   ['/pc-audio-sources.js', ['pc-audio-sources.js', 'text/javascript']],
   ['/helper-audio-worklet.js', ['helper-audio-worklet.js', 'text/javascript']]
 ]);
-function createServer({ apiKey = process.env.OPENAI_API_KEY, model = process.env.OPENAI_REALTIME_MODEL || 'gpt-realtime', fetchImpl = fetch, emailFetch = fetch, geminiKey = process.env.GEMINI_API_KEY, geminiModel = process.env.GEMINI_LIVE_MODEL, liveConnect, liveRelay = false } = {}) {
+function createServer({ apiKey = process.env.OPENAI_API_KEY, model = process.env.OPENAI_REALTIME_MODEL || 'gpt-realtime', fetchImpl = fetch, emailFetch = fetch, geminiKey = process.env.GEMINI_API_KEY, geminiModel = process.env.GEMINI_LIVE_MODEL, liveConnect, liveRelay = !!geminiKey } = {}) {
   let pending = 0;
   const overlay=require('./server/overlay.cjs').overlayBridge();
   const mail=require('./server/email.cjs').emailDelivery({fetchImpl:emailFetch});

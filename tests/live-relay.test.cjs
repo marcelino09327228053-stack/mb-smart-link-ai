@@ -10,6 +10,7 @@ async function fixture(fn,options={}){
 const start={type:'start',settings:{topic:'Panel beating',behavior:'First person',language:'Tagalog'}};
 test('Gemini setup protects secrets; PCM and transcription stream live, pause and close stop upstream',async()=>fixture(async({client,peers,messages})=>{
  client.send(JSON.stringify(start));await tick();const p=peers[0];
+ assert.equal(p.sent[0].setup.realtimeInputConfig.automaticActivityDetection.silenceDurationMs,800);
  assert.match(p.url,/googleapis/);assert.equal(p.opts.headers['x-goog-api-key'],'test-private-gemini');
  assert.match(p.sent[0].setup.systemInstruction.parts[0].text,/Reply in Tagalog/);
  p.emit('message',Buffer.from(JSON.stringify({setupComplete:{}})));await tick();

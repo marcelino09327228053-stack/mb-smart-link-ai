@@ -46,7 +46,7 @@ function attachLive(server,{auth,publicOrigin,apiKey,model,geminiKey,geminiModel
    try{upstream=provider==='gemini'?connect('wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent',{headers:{'x-goog-api-key':geminiKey}}):connect('wss://api.openai.com/v1/realtime?model='+encodeURIComponent(model),{headers:{Authorization:`Bearer ${apiKey}`}});}catch{return fail('AI connection could not start.');}
    setupTimer=setTimeout(()=>fail('AI connection timed out. Please retry.'),25000);
    upstream.on('open',()=>{
-    if(provider==='gemini')send({setup:{model:'models/'+geminiModel,generationConfig:{responseModalities:['AUDIO']},systemInstruction:{parts:[{text:config.instructions+context}]},inputAudioTranscription:{},outputAudioTranscription:{},realtimeInputConfig:{automaticActivityDetection:{silenceDurationMs:900}}}});
+    if(provider==='gemini')send({setup:{model:'models/'+geminiModel,generationConfig:{responseModalities:['AUDIO']},systemInstruction:{parts:[{text:config.instructions+context}]},inputAudioTranscription:{},outputAudioTranscription:{},realtimeInputConfig:{automaticActivityDetection:{silenceDurationMs:800}}}});
     else {config.audio.input.format={type:'audio/pcm',rate:24000};config.instructions+=context;send({type:'session.update',session:config});}
    });
    upstream.on('unexpected-response',(_req,res)=>{res.resume();if(generation!==serial)return;if(res.statusCode===429)fallback();else fail('AI configuration or access error. Contact the app owner.');});
