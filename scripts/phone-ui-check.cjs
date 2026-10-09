@@ -95,6 +95,12 @@ const {createServer}=require('../server.cjs');
   fs.mkdirSync('artifacts/phone',{recursive:true});await page.screenshot({path:'artifacts/phone/home.png',fullPage:true});
   await page.locator('#phoneNav [data-view="library"]').click();await page.screenshot({path:'artifacts/phone/library.png',fullPage:true});
   for(const width of [360,390,600,768,1440]){await page.setViewportSize({width,height:900});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'overflow '+width)}
+  await page.reload();
+  assert.ok((await page.locator('#phoneTopic').inputValue()).length>200,'saved topic survives reload');
+  assert.equal(await page.locator('#phoneBehavior').inputValue(),'Detailed answer with examples, in my own voice.');
+  assert.equal(await page.locator('#phoneLanguage').inputValue(),'Tagalog');
+  await page.evaluate(()=>document.getElementById('phoneListenReset').click());
+  assert.ok((await page.locator('#phoneTopic').inputValue()).length>200,'conversation reset keeps settings');
   const touchPage=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
   await touchPage.goto(page.url());await touchPage.locator('#phoneNav [data-view="listen"]').click();
   for(const size of [{width:844,height:390},{width:960,height:432},{width:390,height:844}]){
