@@ -8,7 +8,7 @@ if(require.main===module)try{
   const env=require('node:util').parseEnv(
     require('node:fs').readFileSync(path.join(__dirname,'.env'),'utf8')
   );
-  for(const name of ['GEMINI_API_KEY','GEMINI_LIVE_MODEL','OPENAI_API_KEY','OPENAI_REALTIME_MODEL','PORT','AUDIO_HELPER_PORT','DEV_SAMPLE_LOGIN','PUBLIC_ORIGIN','DATABASE_URL','NODE_ENV','PGHOST','PGPORT','PGDATABASE','PGUSER','PGPASSWORD','EMAIL_PROVIDER','RESEND_API_KEY','RESEND_FROM_EMAIL']){
+  for(const name of ['ADMIN_EMAIL','GEMINI_API_KEY','GEMINI_LIVE_MODEL','OPENAI_API_KEY','OPENAI_REALTIME_MODEL','PORT','AUDIO_HELPER_PORT','DEV_SAMPLE_LOGIN','PUBLIC_ORIGIN','DATABASE_URL','NODE_ENV','PGHOST','PGPORT','PGDATABASE','PGUSER','PGPASSWORD','EMAIL_PROVIDER','RESEND_API_KEY','RESEND_FROM_EMAIL']){
     // Local key replacement must not be shadowed by a stale Windows user key.
     // Production hosting continues to prioritize its injected environment.
     if(env[name]?.trim()&&(process.env[name]===undefined||
@@ -36,6 +36,7 @@ function getLibrary(){
 const assets = new Map([
   ['/live-transport.js', ['live-transport.js','text/javascript']],
   ['/live-capture-worklet.js', ['live-capture-worklet.js','text/javascript']],
+  ['/access-account.js', ['access-account.js','text/javascript']],
   ['/listen-auth.js', ['listen-auth.js','text/javascript']],
   ['/mobile-listener.js', ['mobile-listener.js','text/javascript']],
   ['/pwa.js', ['pwa.js','text/javascript']],
@@ -61,7 +62,9 @@ function createServer({ apiKey = process.env.OPENAI_API_KEY, model = process.env
   let pending = 0;
   const overlay=require('./server/overlay.cjs').overlayBridge();
   const mail=require('./server/email.cjs').emailDelivery({fetchImpl:emailFetch});
-  const otpRequests=new Map();
+  const otpRequests=new Map(),accessAttempts=new Map();
+  const isAdmin=user=>!!user && user.email.toLowerCase()===(process.env.ADMIN_EMAIL||'marcelino09327228053@gmail.com').trim().toLowerCase();
+  const publicUser=user=>({...user,isAdmin:isAdmin(user),...(user.email.endsWith('@access.invalid')?{email:'Access code account'}:{})});
   const publicOrigin=process.env.PUBLIC_ORIGIN ? new URL(process.env.PUBLIC_ORIGIN) : null;
   if(publicOrigin&&(publicOrigin.protocol!=='https:'||publicOrigin.pathname!=='/'||publicOrigin.search||publicOrigin.hash||publicOrigin.username))throw Error('PUBLIC_ORIGIN must be an HTTPS origin.');
   const handle=async (req, res) => {
@@ -112,7 +115,41 @@ function createServer({ apiKey = process.env.OPENAI_API_KEY, model = process.env
 
     if(req.method==='GET'&&pathname==='/api/auth/me'){
       const user=await auth.getSessionUser(cookies.mb_session);
-      return user?send(200,{user}):send(401,{error:'Not signed in.'});
+      return user?send(200,{user:publicUser(user)}):send(401,{error:'Not signed in.'});
+    }
+
+    if(pathname==='/api/auth/access-code'&&req.method==='POST'){
+      if(!sameOrigin())return send(403,{error:'Same-origin JSON request required.'});
+      const now=Date.now(),peer=req.socket.remoteAddress;
+      for(const [k,v] of accessAttempts)if(v.until<=now)accessAttempts.delete(k);
+      const limit=accessAttempts.get(peer)||{count:0,until:now+60000};
+      if(limit.count>=20)return send(429,{error:'Too many attempts. Wait one minute.'});
+      limit.count++;accessAttempts.set(peer,limit);
+      try{
+        const body=await readJson(),id=await auth.access.resolve(String(body.code||'').trim());
+        if(!id)return send(401,{error:'Invalid, expired, or disabled access code.'});
+        const token=await auth.createSession(id),user=await auth.getSessionUser(token);
+        if(!user){await auth.deleteSession(token);return send(401,{error:'Access code is no longer active.'});}
+        setSessionCookie(token);return send(200,{user:publicUser(user)});
+      }catch{return send(400,{error:'Unable to activate access code.'});}
+    }
+    if(pathname==='/api/admin/access-codes'){
+      const user=await auth.getSessionUser(cookies.mb_session);
+      if(!isAdmin(user))return send(403,{error:'Administrator sign-in required.'});
+      if(req.method==='GET')return send(200,{codes:await auth.access.list()});
+      if(!sameOrigin())return send(403,{error:'Same-origin JSON request required.'});
+      try{
+        const body=await readJson();
+        if(req.method==='POST'){
+          const label=String(body.label||'').trim(),days=Number(body.days);
+          if(!label||label.length>100||!Number.isInteger(days)||days<1||days>365)return send(400,{error:'Enter a label and 1-365 days.'});
+          return send(201,await auth.access.issue(label,days));
+        }
+        if(req.method==='DELETE'&&typeof body.id==='string'){
+          await auth.access.revoke(body.id);return send(200,{ok:true});
+        }
+        return send(400,{error:'Invalid request.'});
+      }catch{return send(503,{error:'Unable to update access codes.'});}
     }
 
     if(req.method==='POST'&&pathname==='/api/auth/request-code'){

@@ -19,6 +19,11 @@ CREATE TABLE IF NOT EXISTS sessions (
 CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at);
 
+CREATE TABLE IF NOT EXISTS access_codes (
+ id TEXT PRIMARY KEY, code_hash TEXT NOT NULL UNIQUE, user_id BIGINT NOT NULL UNIQUE REFERENCES users(id),
+ label TEXT NOT NULL, expires_at BIGINT NOT NULL, disabled INTEGER NOT NULL DEFAULT 0,
+ created_at BIGINT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS login_codes (
   email TEXT PRIMARY KEY COLLATE NOCASE,
   code_hash TEXT NOT NULL,
@@ -152,12 +157,15 @@ function getSessionUser(raw){
   cleanupSessions();
   return db.prepare(`
     SELECT u.id,u.email,u.created_at
-    FROM sessions s    JOIN users u ON u.id=s.user_id
-    WHERE s.token_hash=? AND s.expires_at>?
-  `).get(tokenHash(raw),Date.now())||null;
+    FROM sessions s JOIN users u ON u.id=s.user_id LEFT JOIN access_codes a ON a.user_id=u.id
+    WHERE s.token_hash=? AND s.expires_at>? AND (a.id IS NULL OR (a.disabled=0 AND a.expires_at>?))
+  `).get(tokenHash(raw),Date.now(),Date.now())||null;
 }
 
+const access=require('./access-codes.cjs').accessCodes(async(sql,args)=>{const stmt=db.prepare(sql);return /^SELECT/.test(sql)?stmt.all(...args):(stmt.run(...args),[]);},ensureOtpUser);
+
 module.exports={
+  access,
   hashPassword,
   verifyPassword,
   createUser,
