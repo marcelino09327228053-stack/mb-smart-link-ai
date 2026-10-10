@@ -58,10 +58,9 @@
   suppressClick=false;control.setPointerCapture(e.pointerId);
  });
  function place(left,top){
-  const r=listener.getBoundingClientRect();
   control.classList.add('phone-listen-dragged');
-  control.style.left=Math.max(0,Math.min(left-r.left,listener.clientWidth-control.offsetWidth))+'px';
-  control.style.top=Math.max(0,Math.min(top-r.top,listener.clientHeight-control.offsetHeight))+'px';
+  control.style.left=Math.max(8,Math.min(left,window.innerWidth-control.offsetWidth-8))+'px';
+  control.style.top=Math.max(8,Math.min(top,window.innerHeight-control.offsetHeight-8))+'px';
  }
  control.addEventListener('pointermove',e=>{
   if(!drag||drag.id!==e.pointerId)return;

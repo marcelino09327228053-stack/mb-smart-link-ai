@@ -146,3 +146,8 @@
 #androidListenAccount .account-signed-in{color:#69f0a6;font-weight:600;text-shadow:0 0 8px #38e88b60}
 #phoneAIProvider{width:100%;font:inherit;padding:12px;margin:8px 0;background:#191b27;color:#f4f4fa;border:1px solid var(--line);border-radius:10px}
 #phoneListenStatus[hidden],#phoneListenDetail[hidden]{display:none}
+
+@media(max-width:600px), (max-width:1200px) and (max-height:600px) and (hover:none) and (pointer:coarse){
+ #phoneListenToggle{position:fixed;right:16px;bottom:calc(24px + env(safe-area-inset-bottom));margin:0;z-index:30}
+ #phoneListenToggle.phone-listen-dragged{position:fixed;right:auto;bottom:auto;z-index:30}
+}
