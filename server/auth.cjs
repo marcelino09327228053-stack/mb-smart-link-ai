@@ -32,6 +32,8 @@ CREATE TABLE IF NOT EXISTS login_codes (
 );
 `);
 
+db.exec(require('./billing.cjs').schema);
+
 function scryptAsync(password,salt){
   return new Promise((resolve,reject)=>
     crypto.scrypt(password,salt,64,(err,key)=>err?reject(err):resolve(key))
@@ -157,14 +159,20 @@ function getSessionUser(raw){
   cleanupSessions();
   return db.prepare(`
     SELECT u.id,u.email,u.created_at
-    FROM sessions s JOIN users u ON u.id=s.user_id LEFT JOIN access_codes a ON a.user_id=u.id
-    WHERE s.token_hash=? AND s.expires_at>? AND (a.id IS NULL OR (a.disabled=0 AND a.expires_at>?))
-  `).get(tokenHash(raw),Date.now(),Date.now())||null;
+    FROM sessions s JOIN users u ON u.id=s.user_id
+    WHERE s.token_hash=? AND s.expires_at>?
+  `).get(tokenHash(raw),Date.now())||null;
 }
 
 const access=require('./access-codes.cjs').accessCodes(async(sql,args)=>{const stmt=db.prepare(sql);return /^SELECT/.test(sql)?stmt.all(...args):(stmt.run(...args),[]);},ensureOtpUser);
 
+let billingQueue=Promise.resolve();
+const credits=require('./billing.cjs').billing(fn=>{
+ const run=billingQueue.then(async()=>{db.exec('BEGIN IMMEDIATE');try{const result=await fn(async(sql,args)=>db.prepare(sql).all(...args));db.exec('COMMIT');return result;}catch(e){db.exec('ROLLBACK');throw e;}});
+ billingQueue=run.catch(()=>{});return run;
+},ensureOtpUser);
 module.exports={
+  credits,
   access,
   hashPassword,
   verifyPassword,

@@ -153,3 +153,6 @@
 }
 
 #accessAccount{border-bottom:1px solid var(--line,#46546a);padding-bottom:16px;margin-bottom:20px}#accessAccount input{width:100%;min-width:0;padding:10px;background:#191b27;color:#fff;border:1px solid #596071;border-radius:8px}#accessAccount .account-signed-in{color:#69f0a6}#accessAdmin p{overflow-wrap:anywhere;font-size:14px}#accessCodeList>div{border-top:1px solid #46546a;padding:8px 0}
+
+body:not([data-account-role='admin']) #providerPreferences,body:not([data-account-role='admin']) #phonePasswordSettings,body:not([data-account-role='admin']) #phoneLogout{display:none!important}
+#phonePreferences{max-height:90dvh;overflow:auto}#accessAccount [hidden]{display:none!important}#authEmailOptions{margin:12px 0}.auth-card{max-height:90dvh;overflow:auto}

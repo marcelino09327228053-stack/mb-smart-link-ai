@@ -1,6 +1,6 @@
 process.env.MB_AUTH_DB=':memory:';process.env.MB_LIBRARY_DB=':memory:';delete process.env.PGHOST;delete process.env.DATABASE_URL;delete process.env.PUBLIC_ORIGIN;
 const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=require('node:fs');
-const {createServer}=require('../server.cjs');
+const {createServer}=require('../server.cjs');const auth=require('../server/auth.cjs');
 (async()=>{
  const server=createServer();await new Promise(r=>server.listen(0,'127.0.0.1',r));
  const browser=await chromium.launch({channel:'chrome',headless:true});
@@ -8,6 +8,7 @@ const {createServer}=require('../server.cjs');
  try{
   await page.addInitScript(()=>!localStorage.getItem('mb_future_knowledge_hubs_v1')&&localStorage.setItem('mb_future_knowledge_hubs_v1',JSON.stringify([{id:'cat',name:'Learning',items:[{id:'one',name:'An interesting article',savedAt:'2026-09-30T12:00:00Z',links:[{id:'link',url:'https://example.com/article'}],videos:[],notes:'Original note'}]}])));
   await page.route('**/api/video-title?*',r=>r.fulfill({json:{title:'Example title'}}));
+  const admin=auth.ensureOtpUser('marcelino09327228053@gmail.com');await page.context().addCookies([{name:'mb_session',value:auth.createSession(admin.id),url:'http://127.0.0.1:'+server.address().port}]);
   await page.goto('http://127.0.0.1:'+server.address().port);await page.locator('#phoneHome').waitFor();
   assert.equal(await page.locator('.phone-brand').innerText(),'Smart Link AI');
   const apk=await page.request.get(new URL('/downloads/mb-bubble.apk',page.url()).href);assert.equal(apk.status(),200);assert.equal((await apk.body()).subarray(0,2).toString(),'PK');

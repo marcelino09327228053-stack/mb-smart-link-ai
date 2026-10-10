@@ -124,15 +124,19 @@ async function getSessionUser(raw){
  const result=await getPool().query(`
   SELECT u.id,u.email,u.created_at
   FROM sessions s
-  JOIN users u ON u.id=s.user_id LEFT JOIN access_codes a ON a.user_id=u.id
-  WHERE s.token_hash=$1 AND s.expires_at>$2 AND (a.id IS NULL OR (a.disabled=0 AND a.expires_at>$2))
+  JOIN users u ON u.id=s.user_id
+  WHERE s.token_hash=$1 AND s.expires_at>$2
  `,[tokenHash(raw),Date.now()]);
  return result.rows[0]||null;
 }
 
 const access=require('./access-codes.cjs').accessCodes(async(sql,args)=>{let n=0;return (await getPool().query(sql.replace(/\?/g,()=>'$'+(++n)),args)).rows;},ensureOtpUser);
 
+const credits=require('./billing.cjs').billing(async fn=>{
+ const client=await getPool().connect();try{await client.query('BEGIN');await client.query('SELECT pg_advisory_xact_lock(768241)');const result=await fn(async(sql,args)=>{let n=0;return (await client.query(sql.replace(/\?/g,()=>'$'+(++n)),args)).rows;});await client.query('COMMIT');return result;}catch(e){await client.query('ROLLBACK');throw e;}finally{client.release();}
+},ensureOtpUser);
 module.exports={
+ credits,
  access,
  hashPassword,
  verifyPassword,

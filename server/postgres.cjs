@@ -61,6 +61,7 @@ CREATE TABLE IF NOT EXISTS access_codes (
    PRIMARY KEY(user_id,request_id)
   );
  `);
+ await db.query(require('./billing.cjs').schema);
 }
 async function closePostgres(){if(pool){const p=pool;pool=null;await p.end();}}
 module.exports={getPool,initPostgres,closePostgres};

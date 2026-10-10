@@ -12,7 +12,7 @@ function accessCodes(query,ensureUser){
   },
   async resolve(code){
    if(typeof code!=='string'||!/^MB-[A-Za-z0-9_-]{32}$/.test(code))return null;
-   const rows=await query('SELECT user_id FROM access_codes WHERE code_hash=? AND disabled=0 AND expires_at>?',[hash(code),Date.now()]);
+   const rows=await query('SELECT user_id FROM access_codes WHERE code_hash=?',[hash(code)]);
    return rows[0]?.user_id||null;
   },
   async list(){return query('SELECT id,label,expires_at,disabled,created_at FROM access_codes ORDER BY created_at DESC',[]);},

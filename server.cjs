@@ -58,13 +58,13 @@ const assets = new Map([
   ['/pc-audio-sources.js', ['pc-audio-sources.js', 'text/javascript']],
   ['/helper-audio-worklet.js', ['helper-audio-worklet.js', 'text/javascript']]
 ]);
-function createServer({ apiKey = process.env.OPENAI_API_KEY, model = process.env.OPENAI_REALTIME_MODEL || 'gpt-realtime', fetchImpl = fetch, emailFetch = fetch, geminiKey = process.env.GEMINI_API_KEY, geminiModel = process.env.GEMINI_LIVE_MODEL, liveConnect, liveRelay = !!geminiKey } = {}) {
+function createServer({ apiKey = process.env.OPENAI_API_KEY, model = process.env.OPENAI_REALTIME_MODEL || 'gpt-realtime', fetchImpl = fetch, emailFetch = fetch, geminiKey = process.env.GEMINI_API_KEY, geminiModel = process.env.GEMINI_LIVE_MODEL, liveConnect, liveRelay = !!geminiKey, metered = !!process.env.PUBLIC_ORIGIN || process.env.NODE_ENV==='production' } = {}) {
   let pending = 0;
   const overlay=require('./server/overlay.cjs').overlayBridge();
   const mail=require('./server/email.cjs').emailDelivery({fetchImpl:emailFetch});
   const otpRequests=new Map(),accessAttempts=new Map();
   const isAdmin=user=>!!user && user.email.toLowerCase()===(process.env.ADMIN_EMAIL||'marcelino09327228053@gmail.com').trim().toLowerCase();
-  const publicUser=user=>({...user,isAdmin:isAdmin(user),...(user.email.endsWith('@access.invalid')?{email:'Access code account'}:{})});
+  const publicUser=user=>({...user,isAdmin:isAdmin(user),...(/@(access|guest)\.invalid$/.test(user.email)?{email:'Customer account'}:{})});
   const publicOrigin=process.env.PUBLIC_ORIGIN ? new URL(process.env.PUBLIC_ORIGIN) : null;
   if(publicOrigin&&(publicOrigin.protocol!=='https:'||publicOrigin.pathname!=='/'||publicOrigin.search||publicOrigin.hash||publicOrigin.username))throw Error('PUBLIC_ORIGIN must be an HTTPS origin.');
   const handle=async (req, res) => {
@@ -103,9 +103,9 @@ function createServer({ apiKey = process.env.OPENAI_API_KEY, model = process.env
     const sameOrigin=()=>req.headers.origin===requestOrigin &&
       String(req.headers['content-type']||'').startsWith('application/json');
 
-    const setSessionCookie=value=>res.setHeader(
+    const setSessionCookie=(value,maxAge=2592000)=>res.setHeader(
       'Set-Cookie',
-      `mb_session=${encodeURIComponent(value)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=2592000${!isLocal?'; Secure':''}`
+      `mb_session=${encodeURIComponent(value)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${maxAge}${!isLocal?'; Secure':''}`
     );
 
     const clearSessionCookie=()=>res.setHeader(
@@ -126,30 +126,49 @@ function createServer({ apiKey = process.env.OPENAI_API_KEY, model = process.env
       if(limit.count>=20)return send(429,{error:'Too many attempts. Wait one minute.'});
       limit.count++;accessAttempts.set(peer,limit);
       try{
-        const body=await readJson(),id=await auth.access.resolve(String(body.code||'').trim());
-        if(!id)return send(401,{error:'Invalid, expired, or disabled access code.'});
+        const body=await readJson(),current=await auth.getSessionUser(cookies.mb_session);
+        const code=String(body.code||'').trim();
+        const id=await auth.credits.redeem(code,current?.id)||await auth.access.resolve(code);
+        if(!id)return send(401,{error:'Invalid access code.'});
         const token=await auth.createSession(id),user=await auth.getSessionUser(token);
         if(!user){await auth.deleteSession(token);return send(401,{error:'Access code is no longer active.'});}
         setSessionCookie(token);return send(200,{user:publicUser(user)});
-      }catch{return send(400,{error:'Unable to activate access code.'});}
+      }catch{return send(400,{error:'Unable to redeem this code. It may belong to another account.'});}
+    }
+    if(pathname==='/api/auth/free'&&req.method==='POST'){
+      if(!sameOrigin())return send(403,{error:'Same-origin JSON request required.'});
+      let user=await auth.getSessionUser(cookies.mb_session);
+      if(!user){
+        // Render sets the proxy chain; use its final forwarded client hop only on the hosted service.
+        const peer=process.env.RENDER?String(req.headers['x-forwarded-for']||req.socket.remoteAddress).split(',').at(-1).trim():req.socket.remoteAddress;
+        try{await auth.credits.guestSlot(peer);}catch(e){return send(429,{error:e.message});}
+        user=await auth.ensureOtpUser(require('node:crypto').randomUUID()+'@guest.invalid');
+        setSessionCookie(await auth.createSession(user.id,365*86400000),31536000);
+      }
+      return send(200,{user:publicUser(user)});
+    }
+    if(pathname==='/api/credits'){
+      const user=await auth.getSessionUser(cookies.mb_session);
+      if(!user)return send(401,{error:'Activate Free access or redeem a code first.'});
+      return send(200,{...await auth.credits.status(user.id),isAdmin:isAdmin(user)});
+    }
+    if(pathname==='/api/topup-request'&&req.method==='POST'){
+      if(!sameOrigin())return send(403,{error:'Same-origin JSON request required.'});
+      const user=await auth.getSessionUser(cookies.mb_session);
+      if(!user)return send(401,{error:'Activate access first.'});
+      await auth.credits.request(user.id);return send(200,{ok:true});
     }
     if(pathname==='/api/admin/access-codes'){
       const user=await auth.getSessionUser(cookies.mb_session);
       if(!isAdmin(user))return send(403,{error:'Administrator sign-in required.'});
-      if(req.method==='GET')return send(200,{codes:await auth.access.list()});
+      if(req.method==='GET')return send(200,await auth.credits.admin());
       if(!sameOrigin())return send(403,{error:'Same-origin JSON request required.'});
       try{
         const body=await readJson();
-        if(req.method==='POST'){
-          const label=String(body.label||'').trim(),days=Number(body.days);
-          if(!label||label.length>100||!Number.isInteger(days)||days<1||days>365)return send(400,{error:'Enter a label and 1-365 days.'});
-          return send(201,await auth.access.issue(label,days));
-        }
-        if(req.method==='DELETE'&&typeof body.id==='string'){
-          await auth.access.revoke(body.id);return send(200,{ok:true});
-        }
-        return send(400,{error:'Invalid request.'});
-      }catch{return send(503,{error:'Unable to update access codes.'});}
+        if(req.method==='POST')return send(201,await auth.credits.issue(String(body.label||'').trim(),Number(body.pesos),body.userId||null));
+        if(req.method==='PATCH'){await auth.credits.rate(Number(body.usdPhp));return send(200,{ok:true});}
+        return send(405,{error:'Method not supported.'});
+      }catch{return send(400,{error:'Check the user label, payment (minimum ₱400), customer ID, or exchange rate.'});}
     }
 
     if(req.method==='POST'&&pathname==='/api/auth/request-code'){
@@ -232,7 +251,7 @@ function createServer({ apiKey = process.env.OPENAI_API_KEY, model = process.env
       }catch(e){return send(400,{error:e.message||'Could not save link.'})}
     }
 
-    if (req.method === 'GET' && pathname === '/api/health') return send(200, { configured: !!apiKey, phoneConfigured: liveRelay ? !!(apiKey || geminiKey) : !!apiKey, liveTransport: liveRelay && !!geminiKey, model });
+    if (req.method === 'GET' && pathname === '/api/health') return send(200, { configured: !!apiKey, phoneConfigured: liveRelay ? !!(apiKey || geminiKey) : !!apiKey, liveTransport: (metered||liveRelay) && !!(apiKey||geminiKey), metered, model });
     if (req.method === 'GET' && pathname === '/api/helper/status') return isLocal?send(200, await helperStatus()):send(403,{error:'PC helper is local only.'});
     if (req.method === 'GET' && pathname === '/api/video-title') {
       const url = new URL(req.url, `http://${expectedHost}`).searchParams.get('url');
@@ -253,7 +272,9 @@ function createServer({ apiKey = process.env.OPENAI_API_KEY, model = process.env
     if (req.method === 'POST' && pathname === '/api/session') {
       if (!sameOrigin())
         return send(403, { error: 'Same-origin JSON request required.' });
-      if(!isLocal&&!await auth.getSessionUser(cookies.mb_session))return send(401,{error:'Sign in first.'});
+      const sessionUser=await auth.getSessionUser(cookies.mb_session);
+      if((metered||!isLocal)&&!sessionUser)return send(401,{error:'Sign in first.'});
+      if(metered&&!isAdmin(sessionUser))return send(403,{error:'Desktop Audio is admin-only. Use the phone AI Listen with your allowance or credits.'});
       if (!apiKey) return send(503, { error: 'Set OPENAI_API_KEY in the local .env file and restart START AI LISTENER.bat.' });
       if (pending >= 2) return send(429, { error: 'A connection is already being prepared. Try again shortly.' });
       let body;
@@ -301,7 +322,7 @@ function createServer({ apiKey = process.env.OPENAI_API_KEY, model = process.env
     if(!res.headersSent){res.writeHead(503,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify({error:'Service temporarily unavailable. Please try again.'}))}
     else res.destroy();
   })});
-  if(liveRelay)require('./server/live.cjs').attachLive(server,{auth,publicOrigin,apiKey,model,geminiKey,geminiModel,connect:liveConnect});
+  if(liveRelay||metered)require('./server/live.cjs').attachLive(server,{auth,publicOrigin,apiKey,model,geminiKey,geminiModel,connect:liveConnect,billing:metered?auth.credits:null,isAdmin});
   server.on('close',()=>overlay.stop());
   return server;
 }

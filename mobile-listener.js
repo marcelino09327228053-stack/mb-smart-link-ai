@@ -73,6 +73,8 @@
     state('Paused', '');
   }
   function handle(s, event) {
+    if(event.type==='credits.updated'){window.dispatchEvent(new CustomEvent('mb-credits',{detail:event.credits}));return;}
+    if(event.type==='credits.warning'){detail.hidden=false;detail.textContent=event.message;return;}
     if (s !== active) return;
     const type = event.type;
     if(type === 'transport.reconnecting'){s.ready=false;s.stream?.getAudioTracks().forEach(t=>t.enabled=false);state('Connecting','Reconnecting audio. Please wait, then repeat any interrupted question.');return;}
@@ -105,7 +107,11 @@
   }
   async function begin() {
     if (active || !configured || !supported() || !matchMedia('(max-width:600px), (max-width:1200px) and (max-height:600px) and (hover:none) and (pointer:coarse)').matches) return;
-    if(provider?.value==='gemini'&&!liveTransport){state('Unavailable','This AI is not configured. Select another AI in Settings.');return;}
+    if(!window.MBMetered&&provider?.value==='gemini'&&!liveTransport){state('Unavailable','This AI is not configured. Select another AI in Settings.');return;}
+    if(window.MBMetered){
+      try{const r=await fetch('/api/credits');const c=await r.json();if(!r.ok)throw Error(c.error);if(!c.isAdmin&&c.balance<=0&&c.freeRemaining<=0)throw Error('You’ve reached your weekly free limit. Resets '+new Date(c.resetAt).toLocaleDateString()+'. Redeem a Pro code to continue.');window.MBAccountAdmin=!!c.isAdmin;}catch(e){state('Error',e.message);return;}
+    }
+    if(active)return;
     const s = {abort:new AbortController(), ready:false, paused:false}; active = s;
     state('Connecting', 'Allow microphone access on this phone.');
     s.timeout = setTimeout(() => { if (active === s) end('Connection timed out. Check your network and try again.', 'Error'); }, 45000);
@@ -119,7 +125,7 @@
         track.enabled = false; // No audio leaves while the secure session is connecting.
         track.addEventListener('ended', () => { if (active === s) end('Microphone disconnected. Press LISTEN to reconnect.', 'Error'); });
       });
-      if(liveTransport && window.MBLive && provider?.value!=='openai'){
+      if(liveTransport && window.MBLive && (window.MBMetered&&!window.MBAccountAdmin||provider?.value!=='openai')){
         const settings=liveSettings();s.liveSignature=JSON.stringify(settings);
         s.live=await window.MBLive.connect({stream,settings,signal:s.abort.signal,onEvent:event=>handle(s,event)});
         if(active!==s){s.live.close();return;}syncTopic(s);if(s.paused)s.live.pause();return;
@@ -168,6 +174,7 @@
   controls();
   if (!supported()) state('Unavailable', 'Open this app over HTTPS in a browser that supports microphone access.');
   else fetch('/api/health').then(r => { if (!r.ok) throw Error(); return r.json(); }).then(data => {
+    window.MBMetered=data.metered===true;
     liveTransport = data.liveTransport === true;
     configured = data.phoneConfigured === true || data.configured === true;
     state(configured ? 'Ready' : 'Unavailable', configured ? '' : 'AI is not configured on the server. Contact the app owner.');
