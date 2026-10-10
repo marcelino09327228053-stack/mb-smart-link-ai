@@ -109,7 +109,7 @@
     if (active || !configured || !supported() || !matchMedia('(max-width:600px), (max-width:1200px) and (max-height:600px) and (hover:none) and (pointer:coarse)').matches) return;
     if(!window.MBMetered&&provider?.value==='gemini'&&!liveTransport){state('Unavailable','This AI is not configured. Select another AI in Settings.');return;}
     if(window.MBMetered){
-      try{const r=await fetch('/api/credits');const c=await r.json();if(!r.ok)throw Error(c.error);if(!c.isAdmin&&c.balance<=0&&c.freeRemaining<=0)throw Error('You’ve reached your weekly free limit. Resets '+new Date(c.resetAt).toLocaleDateString()+'. Redeem a Pro code to continue.');window.MBAccountAdmin=!!c.isAdmin;}catch(e){state('Error',e.message);return;}
+      try{const r=await fetch('/api/credits');const c=await r.json();if(!r.ok)throw Error(c.error);if(!c.isAdmin&&!c.hasPro&&c.freeRemaining<=0)throw Error('You’ve reached your weekly free limit. Resets '+new Date(c.resetAt).toLocaleDateString()+'. Redeem a Pro code to continue.');window.MBAccountAdmin=!!c.isAdmin;}catch(e){state('Error',e.message);return;}
     }
     if(active)return;
     const s = {abort:new AbortController(), ready:false, paused:false}; active = s;

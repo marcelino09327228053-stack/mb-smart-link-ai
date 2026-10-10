@@ -19,11 +19,12 @@ test('access codes: admin authorization, same session/data, no hash disclosure, 
   assert.equal((await call('/api/admin/access-codes','GET',null,activated.cookie)).status,403);
   assert.equal((await call('/api/auth/me','GET',null,activated.cookie)).status,200);
   assert.equal((await call('/api/library','GET',null,activated.cookie)).status,200);
+  const customerStatus=(await call('/api/credits','GET',null,activated.cookie)).data;assert.equal('balance' in customerStatus,false);assert.equal(customerStatus.hasPro,true);
   const again=await call('/api/auth/access-code','POST',{code:issued.data.code});assert.equal(again.data.user.id,activated.data.user.id);
-  assert.equal((await call('/api/credits','GET',null,activated.cookie)).data.balance,240);
+  assert.equal((await call('/api/credits','GET',null,activated.cookie)).data.usageCredits,400);
   assert.equal((await call('/api/admin/access-codes','DELETE',{id:issued.data.id},admin)).status,405);
   assert.equal((await call('/api/auth/me','GET',null,activated.cookie)).status,200);
-  assert.equal((await call('/api/credits','GET',null,again.cookie)).data.balance,240,'replay never doubles credits');
+  assert.equal((await call('/api/credits','GET',null,again.cookie)).data.usageCredits,400,'replay never doubles credits');
   await call('/api/topup-request','POST',{},activated.cookie);
   assert.equal((await call('/api/admin/access-codes','GET',null,admin)).data.requests.length,1);
   assert.equal((await call('/api/auth/me','GET',null,admin)).data.user.isAdmin,true);

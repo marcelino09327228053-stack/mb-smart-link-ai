@@ -150,7 +150,8 @@ function createServer({ apiKey = process.env.OPENAI_API_KEY, model = process.env
     if(pathname==='/api/credits'){
       const user=await auth.getSessionUser(cookies.mb_session);
       if(!user)return send(401,{error:'Activate Free access or redeem a code first.'});
-      return send(200,{...await auth.credits.status(user.id),isAdmin:isAdmin(user)});
+      const status=await auth.credits.status(user.id),admin=isAdmin(user);
+      return send(200,{...require('./server/billing.cjs').customerCredits(status),...(admin?{balance:status.balance}:{}),isAdmin:admin});
     }
     if(pathname==='/api/topup-request'&&req.method==='POST'){
       if(!sameOrigin())return send(403,{error:'Same-origin JSON request required.'});

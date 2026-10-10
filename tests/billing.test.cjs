@@ -28,3 +28,11 @@ test('official realtime/audio/cached and transcription rates; malformed usage fa
  assert.equal(cost({type:'tokens',input_token_details:{text_tokens:0,audio_tokens:100},output_tokens:20},65,'transcription'),14625);
  assert.throws(()=>cost({},65));assert.throws(()=>cost(u,65,'realtime','unknown-model'));assert.throws(()=>cost(null,65));
 });
+
+test('customer denomination never exposes peso budget and preserves positive fractional credits',()=>{
+ const {customerCredits}=require('../server/billing.cjs');
+ const view=customerCredits({balance:240,freeRemaining:1000,resetAt:123,userId:'9'});
+ assert.equal(view.usageCredits,400);assert.equal(view.hasPro,true);assert.equal('balance' in view,false);
+ assert.ok(customerCredits({balance:.000001}).usageCredits>0);
+ assert.equal(customerCredits({balance:0}).hasPro,false);
+});

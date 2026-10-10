@@ -48,4 +48,8 @@ function billing(tx,ensureUser){
   debit:(id,event,cost)=>tx(async q=>{if(!Number.isSafeInteger(cost)||cost<0)throw Error('Invalid usage cost.');const a=await account(q,id);if((await q('SELECT id FROM credit_events WHERE id=?',[event])).length)return view(a);const amount=Math.min(Number(a.balance),cost);await q('INSERT INTO credit_events(id,user_id,amount,vendor_cost,created_at) VALUES(?,?,?,?,?)',[event,id,-amount,cost,Date.now()]);await q('UPDATE credit_accounts SET balance=balance-? WHERE user_id=?',[amount,id]);a.balance-=amount;return view(a);})
  };
 }
-module.exports={schema,billing,week,UNIT};
+// Display-only denomination: one app usage credit corresponds to 600,000
+// micro-PHP in the internal wallet. A PHP400 package grants 400 app credits.
+// These are service credits, not provider tokens; metering remains unchanged.
+function customerCredits(status){return {usageCredits:Math.round(status.balance*UNIT)/600000,hasPro:status.balance>0,freeRemaining:status.freeRemaining,resetAt:status.resetAt,userId:status.userId};}
+module.exports={schema,billing,week,UNIT,customerCredits};

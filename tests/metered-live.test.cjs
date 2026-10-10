@@ -18,5 +18,6 @@ test('Pro forces OpenAI and debits actual usage once, including transcription; e
  const done={type:'response.done',response:{id:'paid-response',status:'completed',usage:{input_token_details:{text_tokens:100,audio_tokens:200,cached_tokens:0},output_token_details:{text_tokens:50,audio_tokens:0}}}};
  p.emit('message',JSON.stringify(done));p.emit('message',JSON.stringify(done));p.emit('message',JSON.stringify({type:'conversation.item.input_audio_transcription.completed',item_id:'transcription-one',transcript:'Question',usage:{type:'tokens',input_token_details:{text_tokens:0,audio_tokens:100},output_tokens:20}}));await tick();
  assert.equal((await auth.credits.status(user.id)).balance,239.491375);
+ const update=events.find(e=>e.type==='credits.updated');assert.ok(update);assert.equal('balance' in update.credits,false);assert.ok(update.credits.usageCredits>0);
  await auth.credits.debit(user.id,'drain-balance',239491374);done.response.id='last-response';p.emit('message',JSON.stringify(done));await tick();assert.equal((await auth.credits.status(user.id)).balance,0);assert.ok(events.some(e=>e.type==='error'&&e.message.includes('Pro credits')));assert.ok(p.sent.some(e=>e.type==='response.cancel'));
 }));

@@ -28,3 +28,6 @@ Official sources checked 2026-10-10:
 - https://developers.openai.com/api/docs/models/gpt-realtime
 - https://developers.openai.com/api/docs/models/gpt-4o-mini-transcribe
 - https://developers.openai.com/api/docs/guides/voice-latency-cost
+
+## Customer display denomination
+Customers see app usage credits, never peso balance or the internal allocation split. One app credit represents 600,000 micro-PHP in the existing ledger: a PHP400 package grants 400 usage credits, a PHP800 package grants 800. This is a display conversion, not a change to allocation, metering, exchange rates, or remaining value. These are not literal provider/API tokens. Customer REST and realtime balance payloads omit the peso balance. Admin balance lists retain the internal PHP budget alongside usage credits. Package sales should state the granted usage-credit amount and that audio and AI replies consume it.

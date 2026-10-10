@@ -40,7 +40,7 @@ function attachLive(server,{auth,publicOrigin,apiKey,model,geminiKey,geminiModel
    if(!id)throw Error('Usage identity missing.');
    const cost=require('./usage-cost.cjs').cost(u,entitlement.usdPhp,transcript?'transcription':'realtime',model);
    const result=await billing.debit(owner,(transcript?'transcript:':'response:')+id,cost);
-   entitlement.balance=result.balance;emit({type:'credits.updated',credits:result});
+   entitlement.balance=result.balance;emit({type:'credits.updated',credits:require('./billing.cjs').customerCredits(result)});
    if(entitlement.balance<=0)fail(quotaText());
   }
   const history=[];let setupTimer=setTimeout(()=>fail('Connection timed out. Try again.'),15000);
