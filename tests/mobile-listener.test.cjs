@@ -24,7 +24,7 @@ async function harness(options={}) {
       return options.pending || {getTracks:()=>[track],getAudioTracks:()=>[track]};}}},
     AbortController,matchMedia:()=>({matches:options.mobile!==false}),
     setTimeout:fn=>{const id={};timers.set(id,fn);return id},clearTimeout:id=>timers.delete(id),
-    fetch:async(url,request)=>{requests.push({url,request});return url==='/api/health'?{ok:true,json:async()=>({configured:true})}:options.fail?{ok:false,json:async()=>({error:'Sign in first.'})}:{ok:true,text:async()=> 'v=0\r\ns=answer'};}};
+    fetch:async(url,request)=>{requests.push({url,request});return url==='/api/health'?{ok:true,json:async()=>({configured:true,liveTransport:options.liveTransport===true})}:options.fail?{ok:false,json:async()=>({error:'Sign in first.'})}:{ok:true,text:async()=> 'v=0\r\ns=answer'};}};
   vm.runInNewContext(code,sandbox);await tick();
   return {el,peers,tracks,requests,events,timers,document,get micRequests(){return micRequests},
     begin:async()=>{await el('phoneListenToggle').handlers.click();},
@@ -116,4 +116,11 @@ test('selected answer language reaches session and live changes override custom 
  assert.match(h.peers[0].dc.sent.at(-1).item.content[0].text,/Reply in English/);
  h.el('phoneBehavior').value='Use Tagalog';h.el('phoneBehavior').handlers.change();
  assert.match(h.peers[0].dc.sent.at(-1).item.content[0].text,/Reply in English/);
+});
+
+test('provider selection stops old session and OpenAI uses existing WebRTC path',async()=>{
+ const h=await harness({liveTransport:true});h.el('phoneAIProvider').value='openai';await h.begin();h.event({type:'session.created'});
+ assert.equal(h.peers.length,1);assert.equal(h.el('phoneListenStatus').hidden,true);assert.equal(h.el('phoneListenDetail').hidden,true);
+ h.el('phoneAIProvider').value='gemini';h.el('phoneAIProvider').handlers.change();
+ assert.equal(h.tracks[0].readyState,'ended');assert.equal(h.peers[0].closed,true);
 });

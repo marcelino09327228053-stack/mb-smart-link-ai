@@ -13,6 +13,7 @@
  function update(user,offline=false){
   if(signed&&!user)window.MBPhoneListener?.pause();
   signed=!!user;label.textContent=signed?'Account: Signed in':offline?'Account: Unable to check. Retry sign in.':'Account: Not signed in';
+  label.classList.toggle('account-signed-in',signed);
   sign.hidden=signed;sign.disabled=false;gate.disabled=!signed;
   if(known!==signed){log(signed?'SESSION_DETECTED':'LISTEN_BLOCKED');known=signed;}
  }

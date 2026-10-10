@@ -57,3 +57,8 @@ test('second connection from same owner is refused',async()=>fixture(async({orig
 test('authentication/configuration error does not become paid fallback',async()=>fixture(async({client,peers,messages})=>{
  client.send(JSON.stringify(start));await tick();peers[0].emit('message',JSON.stringify({error:{code:403,message:'secret upstream details'}}));await tick();assert.equal(peers.length,1);assert.ok(peers[0].terminated);assert.doesNotMatch(JSON.stringify(messages),/secret upstream/);
 }));
+
+test('explicit Gemini selection does not silently switch provider on quota failure',async()=>fixture(async({client,peers,messages})=>{
+ client.send(JSON.stringify({...start,settings:{...start.settings,provider:'gemini'}}));await tick();
+ peers[0].emit('message',JSON.stringify({error:{code:429}}));await tick();assert.equal(peers.length,1);assert.ok(messages.some(e=>e.type==='error'));
+}));

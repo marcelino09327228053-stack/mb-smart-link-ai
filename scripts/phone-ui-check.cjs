@@ -45,6 +45,7 @@ const {createServer}=require('../server.cjs');
   await page.evaluate(()=>window.dispatchEvent(new Event('focus')));
   await page.waitForFunction(()=>document.querySelector('#androidListenAccount').textContent.includes('Signed in'));
   assert.equal(await page.locator('#phoneListenToggle').isDisabled(),false);
+  assert.ok(await page.locator('#androidListenAccount .account-signed-in').count());
   assert.equal(await page.locator('#androidListenAccount button').isVisible(),false);
   assert.equal(await page.locator('#phoneTopicSummary').innerText(),'Not set');
   await page.locator('#phoneTopicOpen').click();
@@ -96,7 +97,9 @@ const {createServer}=require('../server.cjs');
   fs.mkdirSync('artifacts/phone',{recursive:true});await page.screenshot({path:'artifacts/phone/home.png',fullPage:true});
   await page.locator('#phoneNav [data-view="library"]').click();await page.screenshot({path:'artifacts/phone/library.png',fullPage:true});
   for(const width of [360,390,600,768,1440]){await page.setViewportSize({width,height:900});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'overflow '+width)}
+  await page.evaluate(()=>{const select=document.getElementById('phoneAIProvider');select.value='openai';select.dispatchEvent(new Event('change'));});
   await page.reload();
+  assert.equal(await page.locator('#phoneAIProvider').inputValue(),'openai');
   assert.ok((await page.locator('#phoneTopic').inputValue()).length>200,'saved topic survives reload');
   assert.equal(await page.locator('#phoneBehavior').inputValue(),'Detailed answer with examples, in my own voice.');
   assert.equal(await page.locator('#phoneLanguage').inputValue(),'Tagalog');

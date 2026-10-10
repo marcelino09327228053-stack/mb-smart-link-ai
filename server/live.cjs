@@ -38,7 +38,7 @@ function attachLive(server,{auth,publicOrigin,apiKey,model,geminiKey,geminiModel
   function send(data){if(upstream?.readyState===1){if(upstream.bufferedAmount>1000000)return fail('Connection too slow. Please reconnect.');upstream.send(JSON.stringify(data));}}
   function remember(){if(inputText)history.push({role:'user',text:inputText.slice(-8000)});if(outputText)history.push({role:'assistant',text:outputText.slice(-8000)});while(history.length>12)history.shift();inputText='';outputText='';responseId='';}
   function startResponse(){if(responseId)return;responseId=`live-${serial}-${++turn}`;emit({type:'response.created',response:{id:responseId}});}
-  function fallback(){if(provider==='gemini'&&apiKey){console.info('[AI live] quota fallback activated');cooldown=Date.now()+60000;remember();emit({type:'transport.reconnecting'});open('openai');}else fail('AI usage limit reached. Please try again later.');}
+  function fallback(){if(provider==='gemini'&&apiKey&&settings?.provider!=='gemini'){console.info('[AI live] quota fallback activated');cooldown=Date.now()+60000;remember();emit({type:'transport.reconnecting'});open('openai');}else fail('AI usage limit reached. Please try again later.');}
   function open(next){
    closeUp();provider=next;const generation=serial;
    const config=sessionConfig({...settings,source:'phone',mode:'text'},model);
@@ -81,8 +81,8 @@ function attachLive(server,{auth,publicOrigin,apiKey,model,geminiKey,geminiModel
    if(binary){if(!ready||paused)return;if(raw.length%2||raw.length>24000)return fail('Invalid audio frame.');if(provider==='gemini')send({realtimeInput:{audio:{data:raw.toString('base64'),mimeType:'audio/pcm;rate=24000'}}});else send({type:'input_audio_buffer.append',audio:raw.toString('base64')});return;}
    try{
     const msg=JSON.parse(raw);
-    if(msg.type==='start'&&!settings){sessionConfig({...msg.settings,source:'phone',mode:'text'});settings=msg.settings;open(geminiKey&&Date.now()>=cooldown?'gemini':apiKey?'openai':'gemini');}
-    else if(msg.type==='settings'&&settings){sessionConfig({...msg.settings,source:'phone',mode:'text'});settings=msg.settings;remember();emit({type:'transport.reconnecting'});open(provider);}
+    if(msg.type==='start'&&!settings){sessionConfig({...msg.settings,source:'phone',mode:'text'});settings=msg.settings;const selected=settings.provider||'auto';if(!['auto','gemini','openai'].includes(selected))return fail('Invalid AI selection.');if((selected==='gemini'&&!geminiKey)||(selected==='openai'&&!apiKey))return fail('Selected AI is unavailable.');open(selected==='auto'?(geminiKey&&Date.now()>=cooldown?'gemini':apiKey?'openai':'gemini'):selected);}
+    else if(msg.type==='settings'&&settings){sessionConfig({...msg.settings,source:'phone',mode:'text'});settings={...msg.settings,provider:settings.provider};remember();emit({type:'transport.reconnecting'});open(provider);}
     else if(msg.type==='pause'){paused=true;if(ready){if(provider==='gemini')send({realtimeInput:{audioStreamEnd:true}});else send({type:'input_audio_buffer.clear'});}}
     else if(msg.type==='resume')paused=false;
     else fail('Invalid listener request.');

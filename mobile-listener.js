@@ -2,7 +2,7 @@
 (() => {
   'use strict';
   const el = id => document.getElementById(id);
-  const toggle = el('phoneListenToggle'), topic = el('phoneTopic'), behavior = el('phoneBehavior'), language = el('phoneLanguage');
+  const toggle = el('phoneListenToggle'), topic = el('phoneTopic'), behavior = el('phoneBehavior'), language = el('phoneLanguage'), provider = el('phoneAIProvider');
   if (!toggle) return;
   const status = el('phoneListenStatus'), detail = el('phoneListenDetail');
   const transcript = el('phoneTranscript'), answer = el('phoneAnswer');
@@ -15,7 +15,7 @@
     toggle.textContent = active ? (active.ready ? active.paused ? 'LISTEN' : 'PAUSE' : 'CONNECTING...') : 'LISTEN';
     toggle.setAttribute('aria-pressed', String(!!active?.ready && !active.paused));
   }
-  function state(label, message) { status.textContent = label; if (message !== undefined) detail.textContent = message; controls(); }
+  function state(label, message) { status.textContent = label; status.hidden = ['Ready','Paused','Listening','Processing','Connecting'].includes(label); if (message !== undefined) detail.textContent = message; detail.hidden = ['Ready','Paused','Listening','Processing'].includes(label); controls(); }
   const answerBlocks = new Map();
   function render() {
     transcript.value = [...inputs.values()].filter(Boolean).join('\n\n');
@@ -44,7 +44,7 @@
     state(label, message);
   }
   function send(s, event) { if (s === active && s.dc?.readyState === 'open') s.dc.send(JSON.stringify(event)); }
-  const liveSettings=()=>({source:'phone',mode:'text',topic:topic.value.trim(),behavior:behavior?.value?.trim()||'',language:language?.value||'same'});
+  const liveSettings=()=>({source:'phone',mode:'text',topic:topic.value.trim(),behavior:behavior?.value?.trim()||'',language:language?.value||'same',provider:provider?.value||'auto'});
   function syncTopic(s) {
     if(s?.live&&s===active){const next=liveSettings(),signature=JSON.stringify(next);if(signature!==s.liveSignature){s.liveSignature=signature;s.live.update(next);}return;}
 
@@ -105,6 +105,7 @@
   }
   async function begin() {
     if (active || !configured || !supported() || !matchMedia('(max-width:600px), (max-width:1200px) and (max-height:600px) and (hover:none) and (pointer:coarse)').matches) return;
+    if(provider?.value==='gemini'&&!liveTransport){state('Unavailable','This AI is not configured. Select another AI in Settings.');return;}
     const s = {abort:new AbortController(), ready:false, paused:false}; active = s;
     state('Connecting', 'Allow microphone access on this phone.');
     s.timeout = setTimeout(() => { if (active === s) end('Connection timed out. Check your network and try again.', 'Error'); }, 45000);
@@ -118,7 +119,7 @@
         track.enabled = false; // No audio leaves while the secure session is connecting.
         track.addEventListener('ended', () => { if (active === s) end('Microphone disconnected. Press LISTEN to reconnect.', 'Error'); });
       });
-      if(liveTransport && window.MBLive){
+      if(liveTransport && window.MBLive && provider?.value!=='openai'){
         const settings=liveSettings();s.liveSignature=JSON.stringify(settings);
         s.live=await window.MBLive.connect({stream,settings,signal:s.abort.signal,onEvent:event=>handle(s,event)});
         if(active!==s){s.live.close();return;}syncTopic(s);if(s.paused)s.live.pause();return;
@@ -156,6 +157,7 @@
     active.stream.getAudioTracks().forEach(track => { track.enabled = true; });
     state('Listening', '');
   });
+  provider?.addEventListener('change',()=>end('','Ready'));
   topic.addEventListener('change', () => syncTopic(active));
   language?.addEventListener('change', () => syncTopic(active));
   behavior?.addEventListener('change', () => syncTopic(active));
